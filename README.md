@@ -1,16 +1,28 @@
-# lector_patentes
+# Witrack
+Trazabilidad Operación Logística
 
-A new Flutter project.
+Aplicación Flutter para gestión logística de camiones con reconocimiento OCR de patentes, registro de llegadas/salidas, gestión de carga, incidencias y sincronización offline-first con Supabase.
 
 ## Getting Started
 
 This project is a starting point for a Flutter application.
 
-A few resources to get you started if this is your first Flutter project:
+### Prerequisites
+- Flutter SDK 3.10.7+
+- Dart SDK
+- Android Studio / VS Code
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### Configuration
+1. Copy `lib/config/supabase_config.dart.example` to `lib/config/supabase_config.dart`
+2. Fill in your Supabase URL and Anon Key
+3. Run `flutter pub get`
+4. Run `flutter run`
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Features
+- License plate OCR recognition
+- Truck arrival/departure registration
+- Load management and shipment tracking
+- Incident reporting and management
+- GPS location tracking
+- Offline-first data synchronization with Supabase
+- Dark/Light theme support
