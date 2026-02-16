@@ -8,7 +8,7 @@ class AppDatabase {
   AppDatabase._();
 
   Database? _db;
-  static const int _version = 3;
+  static const int _version = 4;
 
   Future<Database> get db async {
     if (_db != null) return _db!;
@@ -106,6 +106,7 @@ class AppDatabase {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         shipment_id INTEGER NOT NULL REFERENCES shipments(id),
         path TEXT NOT NULL,
+        image_url TEXT,
         comment TEXT,
         created_at TEXT NOT NULL,
         remote_id TEXT UNIQUE,
@@ -122,8 +123,10 @@ class AppDatabase {
         type TEXT NOT NULL,
         description TEXT NOT NULL,
         photo_path TEXT,
+        photo_url TEXT,
         status TEXT NOT NULL DEFAULT 'abierta',
         resolution TEXT,
+        reported_by TEXT,
         created_at TEXT NOT NULL,
         resolved_at TEXT,
         remote_id TEXT UNIQUE,
@@ -145,21 +148,43 @@ class AppDatabase {
 
   Future<void> _onUpgrade(Database d, int oldVersion, int newVersion) async {
     if (oldVersion < 3) {
-      // Agregar columnas de sincronización a tablas existentes
+      // Agregar columnas de sincronizacion a tablas existentes
       final tables = ['branches', 'drivers', 'trucks', 'schedules', 'shipments', 'load_photos', 'incidents'];
-      
+
       for (final table in tables) {
         try {
           await d.execute('ALTER TABLE $table ADD COLUMN remote_id TEXT UNIQUE');
-          await d.execute('ALTER TABLE $table ADD COLUMN sync_status INTEGER DEFAULT 1'); // 1 = created (pendiente subir)
+          await d.execute('ALTER TABLE $table ADD COLUMN sync_status INTEGER DEFAULT 1');
           await d.execute('ALTER TABLE $table ADD COLUMN last_updated TEXT');
         } catch (e) {
-          // Si columnas ya existen o error, continuar
           print('Error migrando $table: $e');
         }
       }
-      
-      await d.execute('CREATE INDEX idx_shipments_sync ON shipments(sync_status);');
+
+      try {
+        await d.execute('CREATE INDEX idx_shipments_sync ON shipments(sync_status);');
+      } catch (e) {
+        print('Error creando indice: $e');
+      }
+    }
+
+    if (oldVersion < 4) {
+      // Agregar columnas para compatibilidad con Supabase
+      try {
+        await d.execute('ALTER TABLE load_photos ADD COLUMN image_url TEXT');
+      } catch (e) {
+        print('Columna image_url ya existe en load_photos: $e');
+      }
+      try {
+        await d.execute('ALTER TABLE incidents ADD COLUMN photo_url TEXT');
+      } catch (e) {
+        print('Columna photo_url ya existe en incidents: $e');
+      }
+      try {
+        await d.execute('ALTER TABLE incidents ADD COLUMN reported_by TEXT');
+      } catch (e) {
+        print('Columna reported_by ya existe en incidents: $e');
+      }
     }
   }
 
@@ -585,8 +610,8 @@ class AppDatabase {
 
   /// Reinicia la base de datos (solo para desarrollo)
   Future<void> reset() async {
-    final path = join(await getDatabasesPath(), 'truck_management.db');
-    await deleteDatabase(path);
+    final dbPath = join(await getDatabasesPath(), 'transporte.db');
+    await deleteDatabase(dbPath);
     _db = null;
   }
 }
