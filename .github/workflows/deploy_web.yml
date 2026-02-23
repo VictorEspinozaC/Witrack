@@ -1,9 +1,4 @@
-# CI workflow: Build Flutter Web and deploy
-# - Builds Flutter web using SUPABASE_URL and SUPABASE_KEY from GitHub Secrets via --dart-define
-# - If NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID are present, deploys to Netlify (prod)
-# - Otherwise deploys to GitHub Pages (gh-pages branch)
-
-name: Build and Deploy Flutter Web
+name: Build and Deploy Flutter Web to Vercel
 
 on:
   push:
@@ -32,32 +27,24 @@ jobs:
         run: flutter pub get
 
       - name: Build Flutter web
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: |
           flutter build web --release \
             --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
             --dart-define=SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}
 
-      - name: Deploy to Netlify (if configured)
-        if: ${{ secrets.NETLIFY_AUTH_TOKEN != '' && secrets.NETLIFY_SITE_ID != '' }}
-        uses: netlify/actions/cli@master
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
         with:
-          args: deploy --dir=build/web --site ${{ secrets.NETLIFY_SITE_ID }} --prod
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-
-      - name: Deploy to GitHub Pages (fallback)
-        if: ${{ secrets.NETLIFY_AUTH_TOKEN == '' || secrets.NETLIFY_SITE_ID == '' }}
-        uses: JamesIves/github-pages-deploy-action@v4.4.0
-        with:
-          branch: gh-pages
-          folder: build/web
-          token: ${{ secrets.GITHUB_TOKEN }}
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./
+          vercel-args: '--prod'
 
 # Notes for maintainers:
-# - Set repository secrets: SUPABASE_URL, SUPABASE_KEY
-# - Optional (Netlify): NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID to deploy to Netlify
-# - For mobile CI you'll need to extend this workflow (keystore, fastlane, etc.)
-# - Avoid committing keys into the repo; use GitHub Secrets or your CI secret store
+# Set these GitHub repository secrets:
+#   - SUPABASE_URL: URL de tu proyecto Supabase
+#   - SUPABASE_KEY: Clave anon de Supabase
+#   - VERCEL_TOKEN: Token de Vercel (Settings > Tokens)
+#   - VERCEL_ORG_ID: team_7IzWgH1wBPJo83wGrlLJwTYz
+#   - VERCEL_PROJECT_ID: prj_EkMPfuYR1WbNiHZTXRz6brWGxwBv
