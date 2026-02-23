@@ -47,5 +47,22 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Android folder (not needed for web-only deployment)
+/android/
+
+# Build output (web build included separately via CI)
+/build/
+
+# Dart/Flutter cache and generated files
+*.cache.dill.track.dill
+build/flutter_assets/
+build/native_hooks/
+
+# Vercel
+.vercel/
+
+# Temp files
+nul
+
 # Sensitive configuration / API Keys
 lib/config/supabase_config.dart

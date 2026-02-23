@@ -1,0 +1,63 @@
+# CI workflow: Build Flutter Web and deploy
+# - Builds Flutter web using SUPABASE_URL and SUPABASE_KEY from GitHub Secrets via --dart-define
+# - If NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID are present, deploys to Netlify (prod)
+# - Otherwise deploys to GitHub Pages (gh-pages branch)
+
+name: Build and Deploy Flutter Web
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Cache Pub
+        uses: actions/cache@v4
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Flutter web
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          flutter build web --release \
+            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
+            --dart-define=SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}
+
+      - name: Deploy to Netlify (if configured)
+        if: ${{ secrets.NETLIFY_AUTH_TOKEN != '' && secrets.NETLIFY_SITE_ID != '' }}
+        uses: netlify/actions/cli@master
+        with:
+          args: deploy --dir=build/web --site ${{ secrets.NETLIFY_SITE_ID }} --prod
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+
+      - name: Deploy to GitHub Pages (fallback)
+        if: ${{ secrets.NETLIFY_AUTH_TOKEN == '' || secrets.NETLIFY_SITE_ID == '' }}
+        uses: JamesIves/github-pages-deploy-action@v4.4.0
+        with:
+          branch: gh-pages
+          folder: build/web
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+# Notes for maintainers:
+# - Set repository secrets: SUPABASE_URL, SUPABASE_KEY
+# - Optional (Netlify): NETLIFY_AUTH_TOKEN and NETLIFY_SITE_ID to deploy to Netlify
+# - For mobile CI you'll need to extend this workflow (keystore, fastlane, etc.)
+# - Avoid committing keys into the repo; use GitHub Secrets or your CI secret store

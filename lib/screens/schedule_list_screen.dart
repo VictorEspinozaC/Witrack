@@ -100,8 +100,18 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
 
   void _showManualEntryDialog() async {
     final branches = await _db.getAllBranches();
-    
+
     if (!mounted) return;
+
+    if (branches.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Crea al menos una sucursal antes de agendar (menú → Administrar Sucursales).'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
     showDialog(
       context: context,

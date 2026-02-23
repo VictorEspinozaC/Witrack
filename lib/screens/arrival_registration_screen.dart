@@ -21,6 +21,7 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
   
   // Campos del formulario
   String? _plate;
+  final _manualPlateController = TextEditingController();
   final _nameController = TextEditingController();
   final _rutController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -41,6 +42,7 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
 
   @override
   void dispose() {
+    _manualPlateController.dispose();
     _nameController.dispose();
     _rutController.dispose();
     _phoneController.dispose();
@@ -59,16 +61,31 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
   }
 
   Future<void> _scanPlate() async {
+    if (widget.cameras.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cámara no disponible (ej. en navegador). Usa "Ingresar patente manualmente".')),
+      );
+      return;
+    }
     final plate = await Navigator.push<String?>(
       context,
       MaterialPageRoute(builder: (_) => CameraScreen(cameras: widget.cameras)),
     );
     if (plate != null && mounted) {
-      setState(() => _plate = normalizePlate(plate));
+      setState(() {
+        _plate = normalizePlate(plate);
+        _manualPlateController.text = _plate!;
+      });
     }
   }
 
   Future<void> _scanId() async {
+    if (widget.cameras.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cámara no disponible. Ingresa RUT y nombre manualmente.')),
+      );
+      return;
+    }
     final result = await Navigator.push<Map<String, String>?>(
       context,
       MaterialPageRoute(builder: (_) => CameraScreen(
@@ -76,7 +93,7 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
         mode: ScanMode.id,
       )),
     );
-    
+
     if (result != null && mounted) {
       if (result['rut'] != null && result['rut']!.isNotEmpty) {
         _rutController.text = result['rut']!;
@@ -92,8 +109,15 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
 
   Future<void> _registerArrival() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_plate == null) {
-      _showError('Primero escanea la patente del camión');
+
+    final manualPlate = _manualPlateController.text.trim();
+    final plate = _plate ?? (manualPlate.isNotEmpty ? normalizePlate(manualPlate) : null);
+    if (plate == null || plate.isEmpty) {
+      _showError('Ingresa o escanea la patente del camión');
+      return;
+    }
+    if (_branches.isEmpty) {
+      _showError('No hay sucursales. Crea al menos una en el menú Administrar Sucursales.');
       return;
     }
     if (_selectedBranchId == null) {
@@ -104,7 +128,6 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
     setState(() => _saving = true);
 
     try {
-      final plate = _plate!;
       final name = _nameController.text.trim();
       final rut = _rutController.text.trim();
       final phone = _phoneController.text.trim();
@@ -147,6 +170,7 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
       // Limpiar formulario
       setState(() {
         _plate = null;
+        _manualPlateController.clear();
         _nameController.clear();
         _rutController.clear();
         _phoneController.clear();
@@ -206,6 +230,26 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (_branches.isEmpty)
+                Card(
+                  color: Colors.orange.shade50,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.warning_amber, color: Colors.orange.shade700),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'No hay sucursales. Crea al menos una en el menú (ícono Empresa) para poder registrar llegadas.',
+                            style: TextStyle(color: Colors.orange.shade900),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (_branches.isEmpty) const SizedBox(height: 16),
               // Escaneo de patente
               _buildPlateSection(),
               const SizedBox(height: 24),
@@ -232,6 +276,8 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
   }
 
   Widget _buildPlateSection() {
+    final hasCamera = widget.cameras.isNotEmpty;
+    final displayPlate = _plate ?? _manualPlateController.text.trim();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -251,52 +297,73 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            if (_plate != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.primaryColor),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      _plate!,
-                      style: const TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 4,
+            if (hasCamera)
+              if (_plate != null)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.primaryColor),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        _plate!,
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 4,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _scanPlate,
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Volver a escanear'),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  height: 120,
+                  child: OutlinedButton.icon(
+                    onPressed: _scanPlate,
+                    icon: const Icon(Icons.camera_alt, size: 32),
+                    label: const Text(
+                      'ESCANEAR PATENTE',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: _scanPlate,
-                      icon: const Icon(Icons.refresh),
-                      label: const Text('Volver a escanear'),
-                    ),
-                  ],
-                ),
-              )
-            else
-              SizedBox(
-                width: double.infinity,
-                height: 120,
-                child: OutlinedButton.icon(
-                  onPressed: _scanPlate,
-                  icon: const Icon(Icons.camera_alt, size: 32),
-                  label: const Text(
-                    'ESCANEAR PATENTE',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
                   ),
                 ),
+            const SizedBox(height: 12),
+            Text(
+              hasCamera ? 'O ingresa la patente manualmente' : 'Ingresa la patente (en web no hay cámara)',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey.shade600,
               ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _manualPlateController,
+              decoration: const InputDecoration(
+                hintText: 'Ej: ABCD12 o AB-CD-12',
+                prefixIcon: Icon(Icons.edit),
+                border: OutlineInputBorder(),
+              ),
+              textCapitalization: TextCapitalization.characters,
+              onChanged: (value) {
+                if (value.trim().isNotEmpty) setState(() => _plate = normalizePlate(value));
+              },
+            ),
           ],
         ),
       ),

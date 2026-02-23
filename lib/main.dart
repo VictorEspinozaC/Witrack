@@ -1,6 +1,10 @@
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
+import 'init_database_factory.dart';
 import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
 import 'services/sync_service.dart';
@@ -18,14 +22,26 @@ import 'config/supabase_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // Necesario para SQLite: web usa WASM/IndexedDB; escritorio usa FFI.
+  if (kIsWeb) {
+    databaseFactory = databaseFactoryFfiWeb;
+  } else {
+    initDatabaseFactoryDesktop();
+  }
+
   await Supabase.initialize(
     url: SupabaseConfig.url,
     anonKey: SupabaseConfig.anonKey,
   );
 
-  final cameras = await availableCameras();
-  
+  List<CameraDescription> cameras = [];
+  try {
+    cameras = await availableCameras();
+  } catch (_) {
+    // En web o sin cámara la lista puede fallar o estar vacía
+  }
+
   runApp(
     MultiProvider(
       providers: [

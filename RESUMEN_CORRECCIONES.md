@@ -273,15 +273,6 @@ SyncService().stopAutoSync();
 
 ---
 
-## 📱 APK Compilado
-
-✅ **Archivo:** `build/app/outputs/flutter-apk/app-release.apk`
-✅ **Tamaño:** 88.5 MB
-✅ **Modo:** Release (optimizado)
-✅ **Estado:** Listo para instalar en dispositivos Android
-
----
-
 ## 🎁 Próximas Mejoras (Opcionales)
 
 1. **Sincronización de Fotos:**

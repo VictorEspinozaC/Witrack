@@ -10,7 +10,7 @@ This project is a starting point for a Flutter application.
 ### Prerequisites
 - Flutter SDK 3.10.7+
 - Dart SDK
-- Android Studio / VS Code
+- VS Code (o editor de preferencia)
 
 ### Configuration
 1. Copy `lib/config/supabase_config.dart.example` to `lib/config/supabase_config.dart`

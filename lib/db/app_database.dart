@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/models.dart';
@@ -12,7 +13,8 @@ class AppDatabase {
 
   Future<Database> get db async {
     if (_db != null) return _db!;
-    final path = join(await getDatabasesPath(), 'transporte.db');
+    // En web se usa un nombre; en móvil/desktop una ruta en el sistema de archivos
+    final path = kIsWeb ? 'transporte.db' : join(await getDatabasesPath(), 'transporte.db');
 
     _db = await openDatabase(
       path,
