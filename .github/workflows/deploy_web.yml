@@ -26,6 +26,22 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Create Supabase config file
+        run: |
+          mkdir -p lib/config
+          cat > lib/config/supabase_config.dart << 'EOF'
+          class SupabaseConfig {
+            static const String url = String.fromEnvironment(
+              'SUPABASE_URL',
+              defaultValue: '',
+            );
+            static const String anonKey = String.fromEnvironment(
+              'SUPABASE_KEY',
+              defaultValue: '',
+            );
+          }
+          EOF
+
       - name: Build Flutter web
         run: |
           flutter build web --release \
