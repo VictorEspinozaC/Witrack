@@ -1,8 +1,9 @@
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 
 class VehicleLog {
-  final int? id;
+  final String? id;
   final String plate;
   final String? driverName;
   final String? driverRut;
@@ -31,7 +32,7 @@ class VehicleLog {
   };
 
   static VehicleLog fromMap(Map<String, dynamic> m) => VehicleLog(
-    id: m['id'] as int?,
+    id: m['id']?.toString(),
     plate: m['plate'] as String,
     driverName: m['driver_name'] as String?,
     driverRut: m['driver_rut'] as String?,
@@ -46,6 +47,7 @@ class VehicleLogDb {
   VehicleLogDb._();
 
   Database? _db;
+  final _uuid = const Uuid();
 
   Future<Database> get db async {
     if (_db != null) return _db!;
@@ -53,11 +55,11 @@ class VehicleLogDb {
 
     _db = await openDatabase(
       path,
-      version: 1,
+      version: 2, // Increment version for TEXT ID
       onCreate: (d, _) async {
         await d.execute('''
           CREATE TABLE vehicle_logs(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id TEXT PRIMARY KEY,
             plate TEXT NOT NULL,
             driver_name TEXT,
             driver_rut TEXT,
@@ -68,18 +70,38 @@ class VehicleLogDb {
         ''');
         await d.execute('CREATE INDEX idx_plate_status ON vehicle_logs(plate, status);');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Simplest is to drop and recreate for this local log
+          await db.execute('DROP TABLE IF EXISTS vehicle_logs');
+          await db.execute('''
+            CREATE TABLE vehicle_logs(
+              id TEXT PRIMARY KEY,
+              plate TEXT NOT NULL,
+              driver_name TEXT,
+              driver_rut TEXT,
+              entry_time TEXT NOT NULL,
+              exit_time TEXT,
+              status TEXT NOT NULL
+            );
+          ''');
+          await db.execute('CREATE INDEX idx_plate_status ON vehicle_logs(plate, status);');
+        }
+      }
     );
 
     return _db!;
   }
 
-  Future<int> insertEntry({
+  Future<String> insertEntry({
     required String plate,
     required String driverName,
     required String driverRut,
   }) async {
     final d = await db;
-    return d.insert('vehicle_logs', {
+    final id = _uuid.v4();
+    await d.insert('vehicle_logs', {
+      'id': id,
       'plate': plate,
       'driver_name': driverName,
       'driver_rut': driverRut,
@@ -87,6 +109,7 @@ class VehicleLogDb {
       'exit_time': null,
       'status': 'OPEN',
     });
+    return id;
   }
 
   Future<VehicleLog?> findOpenByPlate(String plate) async {
@@ -102,7 +125,7 @@ class VehicleLogDb {
     return VehicleLog.fromMap(rows.first);
   }
 
-  Future<int> closeOpenLog(int id) async {
+  Future<int> closeOpenLog(String id) async {
     final d = await db;
     return d.update(
       'vehicle_logs',

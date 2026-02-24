@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../db/app_database.dart';
 import '../models/models.dart';
+import '../services/sync_service.dart';
 import '../theme/app_theme.dart';
 import 'shipment_detail_screen.dart';
 
@@ -20,8 +21,8 @@ class _IncidentsScreenState extends State<IncidentsScreen>
 
   List<Incident> _openIncidents = [];
   List<Incident> _resolvedIncidents = [];
-  final Map<int, Shipment?> _shipmentsCache = {};
-  final Map<int, Truck?> _trucksCache = {};
+  final Map<String, Shipment?> _shipmentsCache = {};
+  final Map<String, Truck?> _trucksCache = {};
   bool _loading = true;
 
   @override
@@ -157,13 +158,9 @@ class _IncidentsScreenState extends State<IncidentsScreen>
     if (result == true && controller.text.isNotEmpty) {
       await _db.resolveIncident(incident.id!, controller.text);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Incidencia resuelta ✅'),
-            backgroundColor: Colors.green,
-          ),
-        );
         _loadData();
+        // Iniciar sincronización en background
+        SyncService().syncAll();
       }
     }
   }
@@ -291,7 +288,7 @@ class _IncidentsScreenState extends State<IncidentsScreen>
                 context,
                 MaterialPageRoute(
                   builder: (_) =>
-                      ShipmentDetailScreen(shipmentId: incident.shipmentId),
+                      ShipmentDetailScreen(shipmentId: incident.shipmentId), // Ahora es String
                 ),
               ).then((_) => _loadData());
             },

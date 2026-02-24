@@ -2,6 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import '../db/app_database.dart';
 import '../models/models.dart';
+import '../services/sync_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/validators.dart';
 import 'camera_screen.dart';
@@ -28,8 +29,22 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
   
   // Tipo de camión y sucursal
   TruckType _truckType = TruckType.carga;
-  int? _selectedBranchId;
+  TruckClassification _classification = TruckClassification.branchLoad;
+  String? _selectedBranchId;
+  String? _selectedTransportId;
+  String? _selectedClientId;
+  String? _selectedSupplierId;
+  String? _selectedAddressId;
+  
+  DateTime? _birthDate;
+  DateTime? _licenseExpiryDate;
+  String _countryCode = '+56';
+  
   List<Branch> _branches = [];
+  List<TransportCompany> _transporters = [];
+  List<Client> _clients = [];
+  List<Supplier> _suppliers = [];
+  List<DispatchAddress> _addresses = [];
   
   bool _loading = true;
   bool _saving = false;
@@ -37,7 +52,7 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
   @override
   void initState() {
     super.initState();
-    _loadBranches();
+    _loadInitialData();
   }
 
   @override
@@ -49,14 +64,30 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
     super.dispose();
   }
 
-  Future<void> _loadBranches() async {
+  Future<void> _loadInitialData() async {
     final branches = await _db.getAllBranches();
+    final transporters = await _db.getAllTransportCompanies();
+    final clients = await _db.getAllClients();
+    final suppliers = await _db.getAllSuppliers();
+
     setState(() {
       _branches = branches;
+      _transporters = transporters;
+      _clients = clients;
+      _suppliers = suppliers;
+      
       if (branches.isNotEmpty) {
         _selectedBranchId = branches.first.id;
       }
       _loading = false;
+    });
+  }
+
+  Future<void> _loadAddresses(String clientId) async {
+    final addresses = await _db.getDispatchAddresses(clientId);
+    setState(() {
+      _addresses = addresses;
+      _selectedAddressId = addresses.isNotEmpty ? addresses.first.id : null;
     });
   }
 
@@ -117,7 +148,7 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
       return;
     }
     if (_branches.isEmpty) {
-      _showError('No hay sucursales. Crea al menos una en el menú Administrar Sucursales.');
+      _showError('No hay sucursales. Crea al menos una en el menú Administración.');
       return;
     }
     if (_selectedBranchId == null) {
@@ -133,29 +164,55 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
       final phone = _phoneController.text.trim();
 
       // Buscar o crear camión
-      final truck = await _db.getOrCreateTruck(plate, _truckType);
+      var truck = await _db.getTruckByPlate(plate);
+      if (truck == null) {
+        final id = await _db.insertTruck(Truck(
+          plate: plate,
+          type: _truckType,
+          classification: _classification,
+          transportCompanyId: _selectedTransportId,
+        ));
+        truck = Truck(id: id, plate: plate, type: _truckType, classification: _classification, transportCompanyId: _selectedTransportId);
+      } else {
+        // Actualizar clasificación y transporte si es necesario
+        await _db.updateTruck(Truck(
+          id: truck.id,
+          plate: truck.plate,
+          type: _truckType,
+          classification: _classification,
+          transportCompanyId: _selectedTransportId ?? truck.transportCompanyId,
+        ));
+      }
 
       // Buscar o crear chofer
       Driver? driver = await _db.getDriverByRut(rut);
-      int driverId;
+      String driverId;
       
+      final formattedPhone = _phoneController.text.isNotEmpty 
+          ? '$_countryCode ${_phoneController.text.trim()}' 
+          : null;
+
       if (driver == null) {
         driverId = await _db.insertDriver(Driver(
           name: name,
           rut: rut,
-          phone: phone.isNotEmpty ? phone : null,
+          phone: formattedPhone,
+          birthDate: _birthDate,
+          licenseExpiryDate: _licenseExpiryDate,
+          transportCompanyId: _selectedTransportId,
         ));
       } else {
         driverId = driver.id!;
-        // Actualizar teléfono si cambió
-        if (phone.isNotEmpty && driver.phone != phone) {
-          await _db.updateDriver(Driver(
-            id: driverId,
-            name: name,
-            rut: rut,
-            phone: phone,
-          ));
-        }
+        // Actualizar datos si cambiaron
+        await _db.updateDriver(Driver(
+          id: driverId,
+          name: name,
+          rut: rut,
+          phone: formattedPhone ?? driver.phone,
+          birthDate: _birthDate ?? driver.birthDate,
+          licenseExpiryDate: _licenseExpiryDate ?? driver.licenseExpiryDate,
+          transportCompanyId: _selectedTransportId ?? driver.transportCompanyId,
+        ));
       }
 
       // Crear shipment
@@ -163,6 +220,10 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
         truckId: truck.id!,
         driverId: driverId,
         branchId: _selectedBranchId!,
+        transportCompanyId: _selectedTransportId,
+        clientId: _classification == TruckClassification.branchLoad ? _selectedClientId : null,
+        supplierId: _classification == TruckClassification.supplierUnload ? _selectedSupplierId : null,
+        dispatchAddressId: _classification == TruckClassification.branchLoad ? _selectedAddressId : null,
         status: ShipmentStatus.esperaIngreso,
         arrivalTime: DateTime.now(),
       ));
@@ -174,10 +235,20 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
         _nameController.clear();
         _rutController.clear();
         _phoneController.clear();
+        _birthDate = null;
+        _licenseExpiryDate = null;
         _truckType = TruckType.carga;
+        _classification = TruckClassification.branchLoad;
+        _selectedTransportId = null;
+        _selectedClientId = null;
+        _selectedSupplierId = null;
+        _selectedAddressId = null;
       });
 
       _showSuccess('Llegada registrada correctamente');
+      
+      // Iniciar sincronización en background
+      SyncService().syncAll();
 
     } catch (e) {
       _showError('Error al registrar: $e');
@@ -379,10 +450,10 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
           children: [
             Row(
               children: [
-                Icon(Icons.local_shipping, color: AppTheme.primaryColor),
+                Icon(Icons.category, color: AppTheme.primaryColor),
                 const SizedBox(width: 8),
                 Text(
-                  'Tipo de Operación',
+                  'Clasificación de Operación',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -394,23 +465,109 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
               children: [
                 Expanded(
                   child: _TypeButton(
-                    label: 'Carga / Despacho',
-                    icon: Icons.upload,
-                    selected: _truckType == TruckType.carga,
-                    onTap: () => setState(() => _truckType = TruckType.carga),
+                    label: 'Carga Sucursal',
+                    icon: Icons.store,
+                    selected: _classification == TruckClassification.branchLoad,
+                    onTap: () => setState(() {
+                      _classification = TruckClassification.branchLoad;
+                      _truckType = TruckType.carga;
+                    }),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _TypeButton(
-                    label: 'Descarga / Recepción',
-                    icon: Icons.download,
-                    selected: _truckType == TruckType.descarga,
-                    onTap: () => setState(() => _truckType = TruckType.descarga),
+                    label: 'Descarga Proveedor',
+                    icon: Icons.inventory_2,
+                    selected: _classification == TruckClassification.supplierUnload,
+                    onTap: () => setState(() {
+                      _classification = TruckClassification.supplierUnload;
+                      _truckType = TruckType.descarga;
+                    }),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _TypeButton(
+                    label: 'Maquila',
+                    icon: Icons.settings_suggest,
+                    selected: _classification == TruckClassification.maquila,
+                    onTap: () => setState(() {
+                      _classification = TruckClassification.maquila;
+                      // En maquila puede ser tanto carga como descarga, 
+                      // por defecto lo dejamos en carga pero el usuario podría elegir si agregamos el selector
+                    }),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+            
+            // Selector de Empresa de Transporte (Común a todos)
+            DropdownButtonFormField<String>(
+              value: _selectedTransportId,
+              decoration: const InputDecoration(
+                labelText: 'Empresa de Transporte',
+                prefixIcon: Icon(Icons.local_shipping),
+              ),
+              items: _transporters.map((t) => DropdownMenuItem(
+                value: t.id,
+                child: Text(t.name),
+              )).toList(),
+              onChanged: (v) => setState(() => _selectedTransportId = v),
+              validator: (v) => v == null ? 'Selecciona la empresa de transporte' : null,
+            ),
+            const SizedBox(height: 16),
+
+            // Campos específicos según clasificación
+            if (_classification == TruckClassification.branchLoad) ...[
+              DropdownButtonFormField<String>(
+                value: _selectedClientId,
+                decoration: const InputDecoration(
+                  labelText: 'Cliente',
+                  prefixIcon: Icon(Icons.business),
+                ),
+                items: _clients.map((c) => DropdownMenuItem(
+                  value: c.id,
+                  child: Text(c.name),
+                )).toList(),
+                onChanged: (v) {
+                  setState(() => _selectedClientId = v);
+                  if (v != null) _loadAddresses(v);
+                },
+                validator: (v) => v == null ? 'Selecciona un cliente' : null,
+              ),
+              const SizedBox(height: 16),
+              if (_selectedClientId != null)
+                DropdownButtonFormField<String>(
+                  value: _selectedAddressId,
+                  decoration: const InputDecoration(
+                    labelText: 'Dirección de Despacho',
+                    prefixIcon: Icon(Icons.location_on),
+                  ),
+                  items: _addresses.map((a) => DropdownMenuItem(
+                    value: a.id,
+                    child: Text(a.address),
+                  )).toList(),
+                  onChanged: (v) => setState(() => _selectedAddressId = v),
+                  validator: (v) => v == null ? 'Selecciona una dirección' : null,
+                ),
+            ],
+
+            if (_classification == TruckClassification.supplierUnload) 
+              DropdownButtonFormField<String>(
+                value: _selectedSupplierId,
+                decoration: const InputDecoration(
+                  labelText: 'Proveedor',
+                  prefixIcon: Icon(Icons.inventory),
+                ),
+                items: _suppliers.map((s) => DropdownMenuItem(
+                  value: s.id,
+                  child: Text(s.name),
+                )).toList(),
+                onChanged: (v) => setState(() => _selectedSupplierId = v),
+                validator: (v) => v == null ? 'Selecciona un proveedor' : null,
+              ),
           ],
         ),
       ),
@@ -437,7 +594,7 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            DropdownButtonFormField<int>(
+            DropdownButtonFormField<String>(
               value: _selectedBranchId,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.business),
@@ -517,14 +674,108 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
               },
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _phoneController,
-              decoration: const InputDecoration(
-                labelText: 'Teléfono (opcional)',
-                prefixIcon: Icon(Icons.phone),
-                hintText: '+56 9 1234 5678',
-              ),
-              keyboardType: TextInputType.phone,
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  width: 100,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade400),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _countryCode,
+                      items: const [
+                        DropdownMenuItem(value: '+56', child: Text('🇨🇱 +56')),
+                        DropdownMenuItem(value: '+54', child: Text('🇦🇷 +54')),
+                        DropdownMenuItem(value: '+55', child: Text('🇧🇷 +55')),
+                        DropdownMenuItem(value: '+51', child: Text('🇵🇪 +51')),
+                      ],
+                      onChanged: (v) => setState(() => _countryCode = v!),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextFormField(
+                    controller: _phoneController,
+                    decoration: const InputDecoration(
+                      labelText: 'Teléfono',
+                      prefixIcon: Icon(Icons.phone),
+                      hintText: '9 1234 5678',
+                    ),
+                    keyboardType: TextInputType.phone,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDatePicker(
+                    label: 'Fecha Nacimiento',
+                    selectedDate: _birthDate,
+                    onDateSelected: (d) => setState(() => _birthDate = d),
+                    icon: Icons.cake,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildDatePicker(
+                    label: 'Vence Licencia',
+                    selectedDate: _licenseExpiryDate,
+                    onDateSelected: (d) => setState(() => _licenseExpiryDate = d),
+                    icon: Icons.credit_card,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDatePicker({
+    required String label,
+    required DateTime? selectedDate,
+    required Function(DateTime) onDateSelected,
+    required IconData icon,
+  }) {
+    final displayDate = selectedDate != null 
+        ? '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}'
+        : 'Seleccionar';
+
+    return InkWell(
+      onTap: () async {
+        final date = await showDatePicker(
+          context: context,
+          initialDate: selectedDate ?? DateTime.now(),
+          firstDate: DateTime(1950),
+          lastDate: DateTime(2100),
+        );
+        if (date != null) onDateSelected(date);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(icon, size: 16, color: AppTheme.primaryColor),
+                const SizedBox(width: 8),
+                Text(displayDate, style: const TextStyle(fontWeight: FontWeight.bold)),
+              ],
             ),
           ],
         ),

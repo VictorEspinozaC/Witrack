@@ -13,7 +13,7 @@ class PhotoUploadService {
   /// [prefix] - Prefijo opcional (ej: 'load', 'incident')
   Future<String?> uploadPhoto(
     File file, 
-    int shipmentId, 
+    String shipmentId, 
     {String prefix = 'photo'}
   ) async {
     try {
@@ -43,7 +43,7 @@ class PhotoUploadService {
   /// Sube múltiples fotos
   Future<List<String>> uploadPhotos(
     List<File> files, 
-    int shipmentId,
+    String shipmentId,
     {String prefix = 'photo'}
   ) async {
     final urls = <String>[];
@@ -85,7 +85,7 @@ class PhotoUploadService {
   }
 
   /// Sube foto de incidencia
-  Future<String?> uploadIncidentPhoto(File file, int incidentId) async {
+  Future<String?> uploadIncidentPhoto(File file, String incidentId) async {
     try {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final extension = path.extension(file.path).toLowerCase();

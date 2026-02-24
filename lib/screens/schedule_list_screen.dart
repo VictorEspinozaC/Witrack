@@ -277,7 +277,7 @@ class _ScheduleListScreenState extends State<ScheduleListScreen> {
 
 class _ScheduleFormDialog extends StatefulWidget {
   final List<Branch> branches;
-  final Function(int branchId, DateTime date) onSaved;
+  final Function(String branchId, DateTime date) onSaved;
 
   const _ScheduleFormDialog({required this.branches, required this.onSaved});
 
@@ -286,7 +286,7 @@ class _ScheduleFormDialog extends StatefulWidget {
 }
 
 class _ScheduleFormDialogState extends State<_ScheduleFormDialog> {
-  int? _selectedBranchId;
+  String? _selectedBranchId;
   DateTime _selectedDate = DateTime.now();
   final _formKey = GlobalKey<FormState>();
 
@@ -310,7 +310,7 @@ class _ScheduleFormDialogState extends State<_ScheduleFormDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Sucursal', style: TextStyle(fontWeight: FontWeight.bold)),
-            DropdownButtonFormField<int>(
+            DropdownButtonFormField<String>(
               value: _selectedBranchId,
               isExpanded: true,
               items: widget.branches.map((b) => DropdownMenuItem(

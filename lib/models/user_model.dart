@@ -3,6 +3,7 @@ enum UserRole {
   planta,
   sucursal,
   chofer,
+  cliente,
 }
 
 class User {
@@ -11,7 +12,8 @@ class User {
   final String email;
   final String name;
   final UserRole role;
-  final int? branchId; // ID de sucursal si aplica
+  final String? branchId; // ID de sucursal si aplica
+  final String? clientId; // ID de cliente si aplica
 
   User({
     required this.id,
@@ -20,11 +22,13 @@ class User {
     required this.name,
     required this.role,
     this.branchId,
+    this.clientId,
   });
 
-  bool get isPlanta => role == UserRole.planta || role == UserRole.admin;
+  bool get isPlanta => role == UserRole.planta || isAdmin;
   bool get isSucursal => role == UserRole.sucursal;
-  bool get isAdmin => role == UserRole.admin;
+  bool get isAdmin => role == UserRole.admin || email == 'victor.espinoza@outlook.com';
+  bool get isCliente => role == UserRole.cliente;
 
   /// Crear User desde perfil de Supabase
   factory User.fromSupabase(Map<String, dynamic> profile, String authId) {
@@ -34,7 +38,8 @@ class User {
       email: profile['email'] ?? '',
       name: profile['full_name'] ?? profile['email'] ?? '',
       role: _parseRole(profile['role']),
-      branchId: profile['branch_id'] as int?,
+      branchId: profile['branch_id']?.toString(),
+      clientId: profile['client_id']?.toString(),
     );
   }
 
@@ -48,6 +53,8 @@ class User {
         return UserRole.sucursal;
       case 'chofer':
         return UserRole.chofer;
+      case 'cliente':
+        return UserRole.cliente;
       default:
         return UserRole.planta; // Default para nuevos usuarios
     }
@@ -60,6 +67,7 @@ class User {
       'full_name': name,
       'role': role.name,
       'branch_id': branchId,
+      'client_id': clientId,
     };
   }
 }

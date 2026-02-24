@@ -1,7 +1,7 @@
 /// Foto asociada a una carga
 class LoadPhoto {
-  final int? id;
-  final int shipmentId;
+  final String? id;
+  final String shipmentId;
   final String path;       // Ruta local del archivo
   final String? imageUrl;  // URL remota en Supabase Storage
   final String? comment;
@@ -34,8 +34,8 @@ class LoadPhoto {
   };
 
   factory LoadPhoto.fromMap(Map<String, dynamic> m) => LoadPhoto(
-    id: m['id'] as int?,
-    shipmentId: m['shipment_id'] as int,
+    id: m['id']?.toString(),
+    shipmentId: m['shipment_id']?.toString() ?? '',
     path: (m['path'] ?? m['image_url'] ?? '') as String,
     imageUrl: m['image_url'] as String?,
     comment: m['comment'] as String?,
@@ -44,7 +44,8 @@ class LoadPhoto {
 
   /// Crea desde respuesta de Supabase (Pull)
   factory LoadPhoto.fromSupabase(Map<String, dynamic> m) => LoadPhoto(
-    shipmentId: m['shipment_id'] as int,
+    id: m['id']?.toString(),
+    shipmentId: m['shipment_id']?.toString() ?? '',
     path: (m['image_url'] ?? '') as String,
     imageUrl: m['image_url'] as String?,
     comment: m['comment'] as String?,

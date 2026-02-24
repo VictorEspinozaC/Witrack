@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:uuid/uuid.dart';
 import '../models/models.dart';
 
 /// Base de datos principal de la aplicación
@@ -9,7 +10,8 @@ class AppDatabase {
   AppDatabase._();
 
   Database? _db;
-  static const int _version = 4;
+  static const int _version = 7;
+  static const _uuid = Uuid();
 
   Future<Database> get db async {
     if (_db != null) return _db!;
@@ -30,7 +32,7 @@ class AppDatabase {
     // Sucursales
     await d.execute('''
       CREATE TABLE branches (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         code TEXT UNIQUE NOT NULL,
         remote_id TEXT UNIQUE,
@@ -39,13 +41,84 @@ class AppDatabase {
       );
     ''');
 
+    // Empresas de Transporte
+    await d.execute('''
+      CREATE TABLE transport_companies (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        rut TEXT UNIQUE NOT NULL,
+        billing_address TEXT,
+        zip_code TEXT,
+        remote_id TEXT UNIQUE,
+        sync_status INTEGER DEFAULT 1,
+        last_updated TEXT
+      );
+    ''');
+
+    // Contactos (Polimórfico)
+    await d.execute('''
+      CREATE TABLE contacts (
+        id TEXT PRIMARY KEY,
+        owner_id TEXT NOT NULL,
+        type TEXT NOT NULL, -- transporter, client, supplier
+        name TEXT NOT NULL,
+        phone TEXT,
+        email TEXT,
+        remote_id TEXT UNIQUE,
+        sync_status INTEGER DEFAULT 1,
+        last_updated TEXT
+      );
+    ''');
+
+    // Clientes
+    await d.execute('''
+      CREATE TABLE clients (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        rut TEXT UNIQUE NOT NULL,
+        billing_address TEXT,
+        zip_code TEXT,
+        remote_id TEXT UNIQUE,
+        sync_status INTEGER DEFAULT 1,
+        last_updated TEXT
+      );
+    ''');
+
+    // Direcciones de Despacho
+    await d.execute('''
+      CREATE TABLE dispatch_addresses (
+        id TEXT PRIMARY KEY,
+        client_id TEXT NOT NULL REFERENCES clients(id),
+        address TEXT NOT NULL,
+        zip_code TEXT,
+        remote_id TEXT UNIQUE,
+        sync_status INTEGER DEFAULT 1,
+        last_updated TEXT
+      );
+    ''');
+
+    // Proveedores
+    await d.execute('''
+      CREATE TABLE suppliers (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        zip_code TEXT,
+        remote_id TEXT UNIQUE,
+        sync_status INTEGER DEFAULT 1,
+        last_updated TEXT
+      );
+    ''');
+
     // Choferes
     await d.execute('''
       CREATE TABLE drivers (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         rut TEXT UNIQUE NOT NULL,
         phone TEXT,
+        birth_date TEXT,
+        license_expiry_date TEXT,
+        transport_company_id TEXT REFERENCES transport_companies(id),
         remote_id TEXT UNIQUE,
         sync_status INTEGER DEFAULT 1,
         last_updated TEXT
@@ -55,9 +128,11 @@ class AppDatabase {
     // Camiones
     await d.execute('''
       CREATE TABLE trucks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id TEXT PRIMARY KEY,
         plate TEXT UNIQUE NOT NULL,
         type TEXT NOT NULL,
+        classification TEXT, -- branchLoad, supplierUnload, maquila
+        transport_company_id TEXT REFERENCES transport_companies(id),
         remote_id TEXT UNIQUE,
         sync_status INTEGER DEFAULT 1,
         last_updated TEXT
@@ -67,10 +142,10 @@ class AppDatabase {
     // Programaciones
     await d.execute('''
       CREATE TABLE schedules (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        branch_id INTEGER NOT NULL REFERENCES branches(id),
+        id TEXT PRIMARY KEY,
+        branch_id TEXT NOT NULL REFERENCES branches(id),
         scheduled_date TEXT NOT NULL,
-        truck_id INTEGER REFERENCES trucks(id),
+        truck_id TEXT REFERENCES trucks(id),
         status TEXT NOT NULL DEFAULT 'pending',
         notes TEXT,
         remote_id TEXT UNIQUE,
@@ -82,10 +157,14 @@ class AppDatabase {
     // Envíos/Shipments (flujo principal)
     await d.execute('''
       CREATE TABLE shipments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        truck_id INTEGER NOT NULL REFERENCES trucks(id),
-        driver_id INTEGER NOT NULL REFERENCES drivers(id),
-        branch_id INTEGER NOT NULL REFERENCES branches(id),
+        id TEXT PRIMARY KEY,
+        truck_id TEXT NOT NULL REFERENCES trucks(id),
+        driver_id TEXT NOT NULL REFERENCES drivers(id),
+        branch_id TEXT NOT NULL REFERENCES branches(id),
+        transport_company_id TEXT REFERENCES transport_companies(id),
+        client_id TEXT REFERENCES clients(id),
+        supplier_id TEXT REFERENCES suppliers(id),
+        dispatch_address_id TEXT REFERENCES dispatch_addresses(id),
         status TEXT NOT NULL,
         arrival_time TEXT,
         load_start TEXT,
@@ -105,8 +184,8 @@ class AppDatabase {
     // Fotos de carga
     await d.execute('''
       CREATE TABLE load_photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        shipment_id INTEGER NOT NULL REFERENCES shipments(id),
+        id TEXT PRIMARY KEY,
+        shipment_id TEXT NOT NULL REFERENCES shipments(id),
         path TEXT NOT NULL,
         image_url TEXT,
         comment TEXT,
@@ -120,8 +199,8 @@ class AppDatabase {
     // Incidencias
     await d.execute('''
       CREATE TABLE incidents (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        shipment_id INTEGER NOT NULL REFERENCES shipments(id),
+        id TEXT PRIMARY KEY,
+        shipment_id TEXT NOT NULL REFERENCES shipments(id),
         type TEXT NOT NULL,
         description TEXT NOT NULL,
         photo_path TEXT,
@@ -188,14 +267,97 @@ class AppDatabase {
         print('Columna reported_by ya existe en incidents: $e');
       }
     }
+
+    if (oldVersion < 7) {
+      // Nuevas tablas
+      await d.execute('''
+        CREATE TABLE transport_companies (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          rut TEXT UNIQUE NOT NULL,
+          billing_address TEXT,
+          zip_code TEXT,
+          remote_id TEXT UNIQUE,
+          sync_status INTEGER DEFAULT 1,
+          last_updated TEXT
+        )
+      ''');
+      await d.execute('''
+        CREATE TABLE contacts (
+          id TEXT PRIMARY KEY,
+          owner_id TEXT NOT NULL,
+          type TEXT NOT NULL,
+          name TEXT NOT NULL,
+          phone TEXT,
+          email TEXT,
+          remote_id TEXT UNIQUE,
+          sync_status INTEGER DEFAULT 1,
+          last_updated TEXT
+        )
+      ''');
+      await d.execute('''
+        CREATE TABLE clients (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          rut TEXT UNIQUE NOT NULL,
+          billing_address TEXT,
+          zip_code TEXT,
+          remote_id TEXT UNIQUE,
+          sync_status INTEGER DEFAULT 1,
+          last_updated TEXT
+        )
+      ''');
+      await d.execute('''
+        CREATE TABLE dispatch_addresses (
+          id TEXT PRIMARY KEY,
+          client_id TEXT NOT NULL REFERENCES clients(id),
+          address TEXT NOT NULL,
+          zip_code TEXT,
+          remote_id TEXT UNIQUE,
+          sync_status INTEGER DEFAULT 1,
+          last_updated TEXT
+        )
+      ''');
+      await d.execute('''
+        CREATE TABLE suppliers (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          zip_code TEXT,
+          remote_id TEXT UNIQUE,
+          sync_status INTEGER DEFAULT 1,
+          last_updated TEXT
+        )
+      ''');
+
+      // Modificar tablas existentes
+      try {
+        await d.execute('ALTER TABLE drivers ADD COLUMN transport_company_id TEXT REFERENCES transport_companies(id)');
+      } catch (e) {
+        print('Error alter drivers: $e');
+      }
+      try {
+        await d.execute('ALTER TABLE trucks ADD COLUMN classification TEXT');
+        await d.execute('ALTER TABLE trucks ADD COLUMN transport_company_id TEXT REFERENCES transport_companies(id)');
+      } catch (e) {
+        print('Error alter trucks: $e');
+      }
+      try {
+        await d.execute('ALTER TABLE shipments ADD COLUMN transport_company_id TEXT REFERENCES transport_companies(id)');
+        await d.execute('ALTER TABLE shipments ADD COLUMN client_id TEXT REFERENCES clients(id)');
+        await d.execute('ALTER TABLE shipments ADD COLUMN supplier_id TEXT REFERENCES suppliers(id)');
+        await d.execute('ALTER TABLE shipments ADD COLUMN dispatch_address_id TEXT REFERENCES dispatch_addresses(id)');
+      } catch (e) {
+        print('Error alter shipments: $e');
+      }
+    }
   }
 
   Future<void> _insertInitialData(Database d) async {
     // Sucursales de ejemplo
     final branches = [
-      {'name': 'Sucursal Central', 'code': 'CENTRAL', 'sync_status': 1},
-      {'name': 'Sucursal Norte', 'code': 'NORTE', 'sync_status': 1},
-      {'name': 'Sucursal Sur', 'code': 'SUR', 'sync_status': 1},
+      {'id': _uuid.v4(), 'name': 'Sucursal Central', 'code': 'CENTRAL', 'sync_status': 1},
+      {'id': _uuid.v4(), 'name': 'Sucursal Norte', 'code': 'NORTE', 'sync_status': 1},
+      {'id': _uuid.v4(), 'name': 'Sucursal Sur', 'code': 'SUR', 'sync_status': 1},
     ];
     for (final b in branches) {
       await d.insert('branches', b);
@@ -210,16 +372,20 @@ class AppDatabase {
     return rows.map(Branch.fromMap).toList();
   }
 
-  Future<Branch?> getBranchById(int id) async {
+  Future<Branch?> getBranchById(String id) async {
     final d = await db;
     final rows = await d.query('branches', where: 'id = ?', whereArgs: [id]);
     if (rows.isEmpty) return null;
     return Branch.fromMap(rows.first);
   }
 
-  Future<int> insertBranch(Branch branch) async {
+  Future<String> insertBranch(Branch branch) async {
     final d = await db;
-    return d.insert('branches', branch.toMap()..remove('id'));
+    final id = branch.id ?? _uuid.v4();
+    final data = branch.toMap();
+    data['id'] = id;
+    await d.insert('branches', data);
+    return id;
   }
 
   Future<int> updateBranch(Branch branch) async {
@@ -232,13 +398,8 @@ class AppDatabase {
     );
   }
 
-  Future<int> deleteBranch(int id) async {
+  Future<int> deleteBranch(String id) async {
     final d = await db;
-    // Logical delete or physical? For now physical as per requirement, 
-    // but usually better to soft delete. Using physical for simplicity 
-    // unless constraints fail. 
-    // NOTE: Foreign keys might prevent deletion if used in shipments.
-    // Let's use physical delete and let SQLite throw error if constraint failed.
     return d.delete('branches', where: 'id = ?', whereArgs: [id]);
   }
 
@@ -257,16 +418,20 @@ class AppDatabase {
     return Driver.fromMap(rows.first);
   }
 
-  Future<Driver?> getDriverById(int id) async {
+  Future<Driver?> getDriverById(String id) async {
     final d = await db;
     final rows = await d.query('drivers', where: 'id = ?', whereArgs: [id]);
     if (rows.isEmpty) return null;
     return Driver.fromMap(rows.first);
   }
 
-  Future<int> insertDriver(Driver driver) async {
+  Future<String> insertDriver(Driver driver) async {
     final d = await db;
-    return d.insert('drivers', driver.toMap()..remove('id'));
+    final id = driver.id ?? _uuid.v4();
+    final data = driver.toMap();
+    data['id'] = id;
+    await d.insert('drivers', data);
+    return id;
   }
 
   Future<int> updateDriver(Driver driver) async {
@@ -294,16 +459,30 @@ class AppDatabase {
     return Truck.fromMap(rows.first);
   }
 
-  Future<Truck?> getTruckById(int id) async {
+  Future<Truck?> getTruckById(String id) async {
     final d = await db;
     final rows = await d.query('trucks', where: 'id = ?', whereArgs: [id]);
     if (rows.isEmpty) return null;
     return Truck.fromMap(rows.first);
   }
 
-  Future<int> insertTruck(Truck truck) async {
+  Future<String> insertTruck(Truck truck) async {
     final d = await db;
-    return d.insert('trucks', truck.toMap()..remove('id'));
+    final id = truck.id ?? _uuid.v4();
+    final data = truck.toMap();
+    data['id'] = id;
+    await d.insert('trucks', data);
+    return id;
+  }
+
+  Future<int> updateTruck(Truck truck) async {
+    final d = await db;
+    return d.update(
+      'trucks',
+      truck.toMap(),
+      where: 'id = ?',
+      whereArgs: [truck.id],
+    );
   }
 
   /// Inserta o retorna el camión existente por patente
@@ -317,7 +496,7 @@ class AppDatabase {
 
   // ============ SCHEDULES ============
 
-  Future<List<Schedule>> getSchedules({ScheduleStatus? status, int? branchId}) async {
+  Future<List<Schedule>> getSchedules({ScheduleStatus? status, String? branchId}) async {
     final d = await db;
     String? where;
     List<Object?>? whereArgs;
@@ -342,9 +521,13 @@ class AppDatabase {
     return rows.map(Schedule.fromMap).toList();
   }
 
-  Future<int> insertSchedule(Schedule schedule) async {
+  Future<String> insertSchedule(Schedule schedule) async {
     final d = await db;
-    return d.insert('schedules', schedule.toMap()..remove('id'));
+    final id = schedule.id ?? _uuid.v4();
+    final data = schedule.toMap();
+    data['id'] = id;
+    await d.insert('schedules', data);
+    return id;
   }
 
   Future<int> updateSchedule(Schedule schedule) async {
@@ -357,7 +540,7 @@ class AppDatabase {
     );
   }
 
-  Future<int> cancelSchedule(int id) async {
+  Future<int> cancelSchedule(String id) async {
     final d = await db;
     return d.update(
       'schedules',
@@ -371,7 +554,7 @@ class AppDatabase {
 
   Future<List<Shipment>> getShipments({
     ShipmentStatus? status,
-    int? branchId,
+    String? branchId,
     int limit = 100,
   }) async {
     final d = await db;
@@ -400,13 +583,14 @@ class AppDatabase {
   }
 
   /// Obtiene shipments activos (no recibidos ni resueltos)
-  Future<List<Shipment>> getActiveShipments({int? branchId}) async {
+  Future<List<Shipment>> getActiveShipments({String? branchId, String? clientId}) async {
     final d = await db;
     final activeStatuses = [
       ShipmentStatus.esperaIngreso,
       ShipmentStatus.enEspera,
       ShipmentStatus.enCarga,
       ShipmentStatus.cargado,
+      ShipmentStatus.amarre,
       ShipmentStatus.despachado,
       ShipmentStatus.incidencia,
     ].map((s) => "'${s.name}'").join(',');
@@ -416,7 +600,12 @@ class AppDatabase {
 
     if (branchId != null) {
       where += ' AND branch_id = ?';
-      whereArgs = [branchId];
+      whereArgs = (whereArgs ?? [])..add(branchId);
+    }
+    
+    if (clientId != null) {
+      where += ' AND client_id = ?';
+      whereArgs = (whereArgs ?? [])..add(clientId);
     }
 
     final rows = await d.rawQuery('''
@@ -428,16 +617,20 @@ class AppDatabase {
     return rows.map(Shipment.fromMap).toList();
   }
 
-  Future<Shipment?> getShipmentById(int id) async {
+  Future<Shipment?> getShipmentById(String id) async {
     final d = await db;
     final rows = await d.query('shipments', where: 'id = ?', whereArgs: [id]);
     if (rows.isEmpty) return null;
     return Shipment.fromMap(rows.first);
   }
 
-  Future<int> insertShipment(Shipment shipment) async {
+  Future<String> insertShipment(Shipment shipment) async {
     final d = await db;
-    return d.insert('shipments', shipment.toMap()..remove('id'));
+    final id = shipment.id ?? _uuid.v4();
+    final data = shipment.toMap();
+    data['id'] = id;
+    await d.insert('shipments', data);
+    return id;
   }
 
   Future<int> updateShipment(Shipment shipment) async {
@@ -451,7 +644,7 @@ class AppDatabase {
   }
 
   /// Actualiza el estado de un shipment
-  Future<int> updateShipmentStatus(int id, ShipmentStatus status) async {
+  Future<int> updateShipmentStatus(String id, ShipmentStatus status) async {
     final d = await db;
     return d.update(
       'shipments',
@@ -462,7 +655,7 @@ class AppDatabase {
   }
 
   /// Inicia la carga de un shipment
-  Future<int> startLoad(int shipmentId, {DateTime? time}) async {
+  Future<int> startLoad(String shipmentId, {DateTime? time}) async {
     final d = await db;
     return d.update(
       'shipments',
@@ -477,7 +670,7 @@ class AppDatabase {
   }
 
   /// Finaliza la carga de un shipment
-  Future<int> endLoad(int shipmentId, {DateTime? time}) async {
+  Future<int> endLoad(String shipmentId, {DateTime? time}) async {
     final d = await db;
     return d.update(
       'shipments',
@@ -492,7 +685,7 @@ class AppDatabase {
   }
 
   /// Despacha un shipment
-  Future<int> dispatchShipment(int shipmentId, {DateTime? time}) async {
+  Future<int> dispatchShipment(String shipmentId, {DateTime? time}) async {
     final d = await db;
     return d.update(
       'shipments',
@@ -507,7 +700,7 @@ class AppDatabase {
   }
 
   /// Recibe un shipment en sucursal
-  Future<int> receiveShipment(int shipmentId, {DateTime? time}) async {
+  Future<int> receiveShipment(String shipmentId, {DateTime? time}) async {
     final d = await db;
     return d.update(
       'shipments',
@@ -522,7 +715,7 @@ class AppDatabase {
   }
 
   /// Actualiza ubicación GPS de un shipment
-  Future<int> updateShipmentLocation(int shipmentId, double lat, double lng) async {
+  Future<int> updateShipmentLocation(String shipmentId, double lat, double lng) async {
     final d = await db;
     return d.update(
       'shipments',
@@ -534,7 +727,7 @@ class AppDatabase {
 
   // ============ LOAD PHOTOS ============
 
-  Future<List<LoadPhoto>> getPhotosForShipment(int shipmentId) async {
+  Future<List<LoadPhoto>> getPhotosForShipment(String shipmentId) async {
     final d = await db;
     final rows = await d.query(
       'load_photos',
@@ -545,19 +738,23 @@ class AppDatabase {
     return rows.map(LoadPhoto.fromMap).toList();
   }
 
-  Future<int> insertLoadPhoto(LoadPhoto photo) async {
+  Future<String> insertLoadPhoto(LoadPhoto photo) async {
     final d = await db;
-    return d.insert('load_photos', photo.toMap()..remove('id'));
+    final id = photo.id ?? _uuid.v4();
+    final data = photo.toMap();
+    data['id'] = id;
+    await d.insert('load_photos', data);
+    return id;
   }
 
-  Future<int> deleteLoadPhoto(int id) async {
+  Future<int> deleteLoadPhoto(String id) async {
     final d = await db;
     return d.delete('load_photos', where: 'id = ?', whereArgs: [id]);
   }
 
   // ============ INCIDENTS ============
 
-  Future<List<Incident>> getIncidentsForShipment(int shipmentId) async {
+  Future<List<Incident>> getIncidentsForShipment(String shipmentId) async {
     final d = await db;
     final rows = await d.query(
       'incidents',
@@ -579,14 +776,18 @@ class AppDatabase {
     return rows.map(Incident.fromMap).toList();
   }
 
-  Future<int> insertIncident(Incident incident) async {
+  Future<String> insertIncident(Incident incident) async {
     final d = await db;
     // También actualizar el estado del shipment
     await updateShipmentStatus(incident.shipmentId, ShipmentStatus.incidencia);
-    return d.insert('incidents', incident.toMap()..remove('id'));
+    final id = incident.id ?? _uuid.v4();
+    final data = incident.toMap();
+    data['id'] = id;
+    await d.insert('incidents', data);
+    return id;
   }
 
-  Future<int> resolveIncident(int id, String resolution) async {
+  Future<int> resolveIncident(String id, String resolution) async {
     final d = await db;
     return d.update(
       'incidents',
@@ -599,6 +800,124 @@ class AppDatabase {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  // ============ TRANSPORT COMPANIES ============
+
+  Future<List<TransportCompany>> getAllTransportCompanies() async {
+    final d = await db;
+    final rows = await d.query('transport_companies', orderBy: 'name');
+    return rows.map(TransportCompany.fromMap).toList();
+  }
+
+  Future<String> insertTransportCompany(TransportCompany company) async {
+    final d = await db;
+    final id = company.id ?? _uuid.v4();
+    final data = company.toMap();
+    data['id'] = id;
+    await d.insert('transport_companies', data);
+    return id;
+  }
+
+  Future<int> updateTransportCompany(TransportCompany company) async {
+    final d = await db;
+    return d.update(
+      'transport_companies',
+      company.toMap(),
+      where: 'id = ?',
+      whereArgs: [company.id],
+    );
+  }
+
+  // ============ CLIENTS ============
+
+  Future<List<Client>> getAllClients() async {
+    final d = await db;
+    final rows = await d.query('clients', orderBy: 'name');
+    return rows.map(Client.fromMap).toList();
+  }
+
+  Future<String> insertClient(Client client) async {
+    final d = await db;
+    final id = client.id ?? _uuid.v4();
+    final data = client.toMap();
+    data['id'] = id;
+    await d.insert('clients', data);
+    return id;
+  }
+
+  Future<int> updateClient(Client client) async {
+    final d = await db;
+    return d.update(
+      'clients',
+      client.toMap(),
+      where: 'id = ?',
+      whereArgs: [client.id],
+    );
+  }
+
+  // ============ DISPATCH ADDRESSES ============
+
+  Future<List<DispatchAddress>> getDispatchAddresses(String clientId) async {
+    final d = await db;
+    final rows = await d.query(
+      'dispatch_addresses',
+      where: 'client_id = ?',
+      whereArgs: [clientId],
+    );
+    return rows.map(DispatchAddress.fromMap).toList();
+  }
+
+  Future<String> insertDispatchAddress(DispatchAddress address) async {
+    final d = await db;
+    final id = address.id ?? _uuid.v4();
+    final data = address.toMap();
+    data['id'] = id;
+    await d.insert('dispatch_addresses', data);
+    return id;
+  }
+
+  // ============ SUPPLIERS ============
+
+  Future<List<Supplier>> getAllSuppliers() async {
+    final d = await db;
+    final rows = await d.query('suppliers', orderBy: 'name');
+    return rows.map(Supplier.fromMap).toList();
+  }
+
+  Future<String> insertSupplier(Supplier supplier) async {
+    final d = await db;
+    final id = supplier.id ?? _uuid.v4();
+    final data = supplier.toMap();
+    data['id'] = id;
+    await d.insert('suppliers', data);
+    return id;
+  }
+
+  // ============ CONTACTS ============
+
+  Future<List<Contact>> getContacts(String ownerId, ContactType type) async {
+    final d = await db;
+    final rows = await d.query(
+      'contacts',
+      where: 'owner_id = ? AND type = ?',
+      whereArgs: [ownerId, type.name],
+    );
+    return rows.map(Contact.fromMap).toList();
+  }
+
+  Future<String> insertContact(Contact contact) async {
+    final d = await db;
+    final id = contact.id ?? _uuid.v4();
+    final data = contact.toMap();
+    data['id'] = id;
+    await d.insert('contacts', data);
+    return id;
+  }
+
+  Future<int> deleteContact(String id) async {
+    final d = await db;
+    return d.delete('contacts', where: 'id = ?', whereArgs: [id]);
   }
 
   // ============ UTILITIES ============

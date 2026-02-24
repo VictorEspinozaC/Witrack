@@ -1,6 +1,6 @@
 /// Representa una sucursal destino
 class Branch {
-  final int? id;
+  final String? id;
   final String name;
   final String code;
 
@@ -13,7 +13,7 @@ class Branch {
   };
 
   factory Branch.fromMap(Map<String, dynamic> m) => Branch(
-    id: m['id'] as int?,
+    id: m['id']?.toString(),
     name: m['name'] as String,
     code: m['code'] as String,
   );

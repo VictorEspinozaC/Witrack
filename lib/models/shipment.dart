@@ -4,6 +4,7 @@ enum ShipmentStatus {
   enEspera,       // Ingresó a planta, esperando carga
   enCarga,        // En proceso de carga
   cargado,        // Carga finalizada
+  amarre,         // Proceso de amarre
   despachado,     // En camino a sucursal
   recibido,       // Llegó a sucursal
   incidencia,     // Tiene reclamo pendiente
@@ -22,6 +23,8 @@ extension ShipmentStatusExt on ShipmentStatus {
         return 'En Carga';
       case ShipmentStatus.cargado:
         return 'Cargado';
+      case ShipmentStatus.amarre:
+        return 'Amarre';
       case ShipmentStatus.despachado:
         return 'Despachado';
       case ShipmentStatus.recibido:
@@ -44,6 +47,8 @@ extension ShipmentStatusExt on ShipmentStatus {
         return '#AB47BC'; // Purple
       case ShipmentStatus.cargado:
         return '#66BB6A'; // Green
+      case ShipmentStatus.amarre:
+        return '#FFD54F'; // Amber/Yellow
       case ShipmentStatus.despachado:
         return '#26A69A'; // Teal
       case ShipmentStatus.recibido:
@@ -58,10 +63,14 @@ extension ShipmentStatusExt on ShipmentStatus {
 
 /// Representa un envío/viaje de camión
 class Shipment {
-  final int? id;
-  final int truckId;
-  final int driverId;
-  final int branchId;
+  final String? id;
+  final String truckId;
+  final String driverId;
+  final String branchId;
+  final String? transportCompanyId;
+  final String? clientId;
+  final String? supplierId;
+  final String? dispatchAddressId;
   final ShipmentStatus status;
   final DateTime? arrivalTime;
   final DateTime? loadStart;
@@ -78,6 +87,10 @@ class Shipment {
     required this.truckId,
     required this.driverId,
     required this.branchId,
+    this.transportCompanyId,
+    this.clientId,
+    this.supplierId,
+    this.dispatchAddressId,
     required this.status,
     this.arrivalTime,
     this.loadStart,
@@ -95,6 +108,10 @@ class Shipment {
     'truck_id': truckId,
     'driver_id': driverId,
     'branch_id': branchId,
+    'transport_company_id': transportCompanyId,
+    'client_id': clientId,
+    'supplier_id': supplierId,
+    'dispatch_address_id': dispatchAddressId,
     'status': status.name,
     'arrival_time': arrivalTime?.toIso8601String(),
     'load_start': loadStart?.toIso8601String(),
@@ -108,10 +125,14 @@ class Shipment {
   };
 
   factory Shipment.fromMap(Map<String, dynamic> m) => Shipment(
-    id: m['id'] as int?,
-    truckId: m['truck_id'] as int,
-    driverId: m['driver_id'] as int,
-    branchId: m['branch_id'] as int,
+    id: m['id']?.toString(),
+    truckId: m['truck_id']?.toString() ?? '',
+    driverId: m['driver_id']?.toString() ?? '',
+    branchId: m['branch_id']?.toString() ?? '',
+    transportCompanyId: m['transport_company_id']?.toString(),
+    clientId: m['client_id']?.toString(),
+    supplierId: m['supplier_id']?.toString(),
+    dispatchAddressId: m['dispatch_address_id']?.toString(),
     status: ShipmentStatus.values.byName(m['status'] as String),
     arrivalTime: m['arrival_time'] != null
         ? DateTime.parse(m['arrival_time'] as String)
@@ -136,10 +157,14 @@ class Shipment {
 
   /// Crea una copia con campos modificados
   Shipment copyWith({
-    int? id,
-    int? truckId,
-    int? driverId,
-    int? branchId,
+    String? id,
+    String? truckId,
+    String? driverId,
+    String? branchId,
+    String? transportCompanyId,
+    String? clientId,
+    String? supplierId,
+    String? dispatchAddressId,
     ShipmentStatus? status,
     DateTime? arrivalTime,
     DateTime? loadStart,
@@ -154,6 +179,10 @@ class Shipment {
     truckId: truckId ?? this.truckId,
     driverId: driverId ?? this.driverId,
     branchId: branchId ?? this.branchId,
+    transportCompanyId: transportCompanyId ?? this.transportCompanyId,
+    clientId: clientId ?? this.clientId,
+    supplierId: supplierId ?? this.supplierId,
+    dispatchAddressId: dispatchAddressId ?? this.dispatchAddressId,
     status: status ?? this.status,
     arrivalTime: arrivalTime ?? this.arrivalTime,
     loadStart: loadStart ?? this.loadStart,

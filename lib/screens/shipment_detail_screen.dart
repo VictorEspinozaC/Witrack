@@ -9,12 +9,13 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/gps_service.dart';
 import '../services/photo_upload_service.dart';
+import '../services/sync_service.dart';
 import 'load_management_screen.dart';
 import 'reception_screen.dart';
 
 /// Pantalla de detalle de un shipment con historial y acciones
 class ShipmentDetailScreen extends StatefulWidget {
-  final int shipmentId;
+  final String shipmentId;
 
   const ShipmentDetailScreen({super.key, required this.shipmentId});
 
@@ -86,6 +87,8 @@ class _ShipmentDetailScreenState extends State<ShipmentDetailScreen> {
         await _db.updateShipmentStatus(widget.shipmentId, newStatus);
     }
     await _loadData();
+    // Iniciar sincronización en background
+    SyncService().syncAll();
   }
 
   Future<void> _showResolveDialog(Incident incident) async {
@@ -128,6 +131,8 @@ class _ShipmentDetailScreenState extends State<ShipmentDetailScreen> {
           const SnackBar(content: Text('Incidencia resuelta ✅')),
         );
         _loadData();
+        // Iniciar sincronización en background
+        SyncService().syncAll();
       }
     }
   }
@@ -260,7 +265,7 @@ class _ShipmentDetailScreenState extends State<ShipmentDetailScreen> {
       if (photoFile != null) {
         photoUrl = await PhotoUploadService().uploadIncidentPhoto(
           photoFile!, 
-          widget.shipmentId,
+          widget.shipmentId, // Ahora es String
         );
       }
 
@@ -275,13 +280,9 @@ class _ShipmentDetailScreenState extends State<ShipmentDetailScreen> {
       await _db.insertIncident(incident);
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Incidencia reportada ⚠️'),
-            backgroundColor: Colors.orange,
-          ),
-        );
         _loadData();
+        // Iniciar sincronización en background
+        SyncService().syncAll();
       }
     }
   }
@@ -418,6 +419,8 @@ class _ShipmentDetailScreenState extends State<ShipmentDetailScreen> {
         return Icons.downloading;
       case ShipmentStatus.cargado:
         return Icons.check_circle;
+      case ShipmentStatus.amarre:
+        return Icons.link; // O Icons.security, Icons.construction
       case ShipmentStatus.despachado:
         return Icons.local_shipping;
       case ShipmentStatus.recibido:
@@ -515,6 +518,10 @@ class _ShipmentDetailScreenState extends State<ShipmentDetailScreen> {
         color: AppTheme.getStatusColor('cargado'),
       ));
     }
+
+    // Nota: El estado de 'amarre' no tiene un campo de fecha específico en el modelo actual, 
+    // pero podríamos usar el tiempo de actualización si fuera necesario. 
+    // Por ahora solo mostramos si ocurrió el evento de despacho posterior.
 
     if (shipment.dispatchTime != null) {
       events.add(_TimelineEvent(
@@ -710,6 +717,13 @@ class _ShipmentDetailScreenState extends State<ShipmentDetailScreen> {
         
       case ShipmentStatus.cargado:
         if (!isPlanta) return null;
+        label = 'Iniciar Amarre';
+        icon = Icons.link;
+        onPressed = () => _updateStatus(ShipmentStatus.amarre);
+        break;
+        
+      case ShipmentStatus.amarre:
+        if (!isPlanta) return null;
         label = 'Despachar';
         icon = Icons.local_shipping;
         onPressed = () => _updateStatus(ShipmentStatus.despachado);
@@ -723,7 +737,7 @@ class _ShipmentDetailScreenState extends State<ShipmentDetailScreen> {
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => ReceptionScreen(shipmentId: widget.shipmentId),
+              builder: (_) => ReceptionScreen(shipmentId: widget.shipmentId), // Ahora es String
             ),
           );
           if (result == true) _loadData();

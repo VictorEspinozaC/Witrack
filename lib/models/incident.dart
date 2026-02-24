@@ -15,8 +15,8 @@ enum IncidentStatus {
 
 /// Representa una incidencia/reclamo en recepcion
 class Incident {
-  final int? id;
-  final int shipmentId;
+  final String? id;
+  final String shipmentId;
   final IncidentType type;
   final String description;
   final String? photoPath;   // Ruta local de la foto
@@ -89,8 +89,8 @@ class Incident {
   }
 
   factory Incident.fromMap(Map<String, dynamic> m) => Incident(
-    id: m['id'] as int?,
-    shipmentId: m['shipment_id'] as int,
+    id: m['id']?.toString(),
+    shipmentId: m['shipment_id']?.toString() ?? '',
     type: IncidentType.values.byName(m['type'] as String),
     description: m['description'] as String,
     photoPath: m['photo_path'] as String?,
@@ -106,7 +106,8 @@ class Incident {
 
   /// Crea desde respuesta de Supabase (Pull)
   factory Incident.fromSupabase(Map<String, dynamic> m) => Incident(
-    shipmentId: m['shipment_id'] as int,
+    id: m['id']?.toString(),
+    shipmentId: m['shipment_id']?.toString() ?? '',
     type: IncidentType.values.byName(m['type'] as String),
     description: m['description'] as String,
     photoUrl: m['photo_url'] as String?,
@@ -122,8 +123,8 @@ class Incident {
   );
 
   Incident copyWith({
-    int? id,
-    int? shipmentId,
+    String? id,
+    String? shipmentId,
     IncidentType? type,
     String? description,
     String? photoPath,

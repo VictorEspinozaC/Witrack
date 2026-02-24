@@ -7,10 +7,10 @@ enum ScheduleStatus {
 
 /// Representa una programación importada
 class Schedule {
-  final int? id;
-  final int branchId;
+  final String? id;
+  final String branchId;
   final DateTime scheduledDate;
-  final int? truckId; // null si no está asignado
+  final String? truckId; // null si no está asignado
   final ScheduleStatus status;
   final String? notes;
 
@@ -33,19 +33,19 @@ class Schedule {
   };
 
   factory Schedule.fromMap(Map<String, dynamic> m) => Schedule(
-    id: m['id'] as int?,
-    branchId: m['branch_id'] as int,
+    id: m['id']?.toString(),
+    branchId: m['branch_id']?.toString() ?? '',
     scheduledDate: DateTime.parse(m['scheduled_date'] as String),
-    truckId: m['truck_id'] as int?,
+    truckId: m['truck_id']?.toString(),
     status: ScheduleStatus.values.byName(m['status'] as String),
     notes: m['notes'] as String?,
   );
 
   Schedule copyWith({
-    int? id,
-    int? branchId,
+    String? id,
+    String? branchId,
     DateTime? scheduledDate,
-    int? truckId,
+    String? truckId,
     ScheduleStatus? status,
     String? notes,
   }) => Schedule(

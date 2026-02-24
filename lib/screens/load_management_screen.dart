@@ -6,11 +6,12 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../db/app_database.dart';
 import '../models/models.dart';
+import '../services/sync_service.dart';
 import '../theme/app_theme.dart';
 
 /// Pantalla de gestión de carga: fotos, comentarios, inicio/fin
 class LoadManagementScreen extends StatefulWidget {
-  final int shipmentId;
+  final String shipmentId;
 
   const LoadManagementScreen({super.key, required this.shipmentId});
 
@@ -205,6 +206,8 @@ class _LoadManagementScreenState extends State<LoadManagementScreen> {
     } catch (_) {}
 
     await _loadData();
+    // Sincronizar eliminación
+    SyncService().syncAll();
   }
 
   Future<void> _selectLoadStartTime() async {
@@ -240,6 +243,8 @@ class _LoadManagementScreenState extends State<LoadManagementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Carga iniciada ✅')),
       );
+      // Sincronizar inicio carga
+      SyncService().syncAll();
     }
   }
 
@@ -262,6 +267,8 @@ class _LoadManagementScreenState extends State<LoadManagementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Carga finalizada ✅')),
       );
+      // Sincronizar fin carga
+      SyncService().syncAll();
       Navigator.pop(context);
     }
   }

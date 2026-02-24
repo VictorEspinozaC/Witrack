@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import '../db/app_database.dart';
 import 'photo_upload_service.dart';
@@ -23,6 +24,7 @@ class SyncService {
 
   bool _isSyncing = false;
   DateTime? _lastSyncTime;
+  Timer? _syncTimer;
 
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
@@ -30,7 +32,7 @@ class SyncService {
   /// Sincroniza todos los datos (Push local->nube y Pull nube->local)
   Future<void> syncAll() async {
     if (_isSyncing) {
-      print('Sync: Ya hay una sincronizacion en curso, omitiendo...');
+      print('⏳ Sync: Sincronización ya en curso, omitiendo...');
       return;
     }
 
@@ -40,11 +42,11 @@ class SyncService {
       // Validar conexion
       final isConnected = await _checkConnection();
       if (!isConnected) {
-        print('Sync: Sin conexion a Supabase, omitiendo...');
+        print('❌ Sync: Sin conexión a Supabase, omitiendo...');
         return;
       }
 
-      print('Sync: Iniciando sincronizacion...');
+      print('🔄 Sync: Iniciando sincronización...');
 
       // ========== PUSH (local -> nube) ==========
       // 1. Maestros primero (sin dependencias FK)
@@ -71,27 +73,52 @@ class SyncService {
       await _pullShipments();
 
       _lastSyncTime = DateTime.now();
-      print('Sync: Sincronizacion completada');
+      print('✅ Sync: Sincronización completada exitosamente');
     } catch (e) {
-      print('Sync: Error de sincronizacion: $e');
+      print('❌ Sync: Error de sincronización: $e');
     } finally {
       _isSyncing = false;
+    }
+  }
+
+  /// Inicia la sincronización automática periódica
+  void startAutoSync({int intervalSeconds = 300}) {
+    // Detener timer previo si existe
+    stopAutoSync();
+    
+    print('⏱️ Sync: Iniciando sincronización automática cada $intervalSeconds segundos');
+    
+    // Primera sincronización inmediata (después de un pequeño delay para no bloquear el inicio)
+    Future.delayed(const Duration(seconds: 5), () => syncAll());
+
+    _syncTimer = Timer.periodic(Duration(seconds: intervalSeconds), (_) {
+      syncAll();
+    });
+  }
+
+  /// Detiene la sincronización automática
+  void stopAutoSync() {
+    if (_syncTimer != null) {
+      print('⏹️ Sync: Deteniendo sincronización automática');
+      _syncTimer!.cancel();
+      _syncTimer = null;
     }
   }
 
   /// Verifica conexion con Supabase
   Future<bool> _checkConnection() async {
     try {
-      final session = _client.auth.currentSession;
-      if (session == null) {
-        print('Sync: No hay sesion activa');
+      final user = _client.auth.currentUser;
+      if (user == null) {
+        print('ℹ️ Sync: No hay usuario autenticado');
         return false;
       }
-      // Verificar conectividad con una query simple
+      
+      // Verificar conectividad con una query simple a branches (que todos pueden leer)
       await _client.from('branches').select('id').limit(1);
       return true;
     } catch (e) {
-      print('Sync: Error de conexion: $e');
+      print('⚠️ Sync: Error de verificación de conexión: $e');
       return false;
     }
   }
@@ -161,7 +188,7 @@ class SyncService {
           continue;
         }
 
-        int? truckRemoteId;
+        String? truckRemoteId;
         if (data['truck_id'] != null) {
           truckRemoteId = await _getRemoteId('trucks', data['truck_id']);
           if (truckRemoteId == null) {
@@ -180,7 +207,7 @@ class SyncService {
 
         dynamic response;
         if (data['remote_id'] != null) {
-          supabaseData['id'] = int.parse(data['remote_id']);
+          supabaseData['id'] = data['remote_id'];
           response = await _client
               .from('schedules')
               .upsert(supabaseData)
@@ -250,7 +277,7 @@ class SyncService {
 
         dynamic response;
         if (data['remote_id'] != null) {
-          supabaseData['id'] = int.parse(data['remote_id']);
+          supabaseData['id'] = data['remote_id'];
           response = await _client
               .from('shipments')
               .upsert(supabaseData)
@@ -325,7 +352,7 @@ class SyncService {
 
         dynamic response;
         if (data['remote_id'] != null) {
-          supabaseData['id'] = int.parse(data['remote_id']);
+          supabaseData['id'] = data['remote_id'];
           response = await _client
               .from('load_photos')
               .upsert(supabaseData)
@@ -406,7 +433,7 @@ class SyncService {
 
         dynamic response;
         if (data['remote_id'] != null) {
-          supabaseData['id'] = int.parse(data['remote_id']);
+          supabaseData['id'] = data['remote_id'];
           response = await _client
               .from('incidents')
               .upsert(supabaseData)
@@ -573,9 +600,12 @@ class SyncService {
 
           if (byRut.isEmpty) {
             await db.insert('drivers', {
+              'id': remoteId, // Usamos el ID remoto como local también ya que es UUID
               'name': remote['name'],
               'rut': remote['rut'],
               'phone': remote['phone'],
+              'birth_date': remote['birth_date'],
+              'license_expiry_date': remote['license_expiry_date'],
               'remote_id': remoteId,
               'sync_status': 0,
               'last_updated': DateTime.now().toIso8601String(),
@@ -588,6 +618,8 @@ class SyncService {
                 'remote_id': remoteId,
                 'sync_status': 0,
                 'last_updated': DateTime.now().toIso8601String(),
+                'birth_date': remote['birth_date'],
+                'license_expiry_date': remote['license_expiry_date'],
               },
               where: 'rut = ?',
               whereArgs: [remote['rut']],
@@ -690,7 +722,7 @@ class SyncService {
   // ================================================================
 
   /// Obtiene el remote_id de un registro local
-  Future<int?> _getRemoteId(String table, dynamic localId) async {
+  Future<String?> _getRemoteId(String table, dynamic localId) async {
     if (localId == null) return null;
     final db = await _db.db;
     final result = await db.query(
@@ -700,13 +732,13 @@ class SyncService {
       whereArgs: [localId],
     );
     if (result.isNotEmpty && result.first['remote_id'] != null) {
-      return int.tryParse(result.first['remote_id'] as String);
+      return result.first['remote_id'] as String?;
     }
     return null;
   }
 
   /// Obtiene el id local de un registro por su remote_id
-  Future<int?> _getLocalIdByRemoteId(String table, String remoteId) async {
+  Future<String?> _getLocalIdByRemoteId(String table, String remoteId) async {
     final db = await _db.db;
     final result = await db.query(
       table,
@@ -715,7 +747,7 @@ class SyncService {
       whereArgs: [remoteId],
     );
     if (result.isNotEmpty) {
-      return result.first['id'] as int?;
+      return result.first['id'] as String?;
     }
     return null;
   }

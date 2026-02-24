@@ -16,6 +16,7 @@ import 'screens/records_screen.dart';
 import 'screens/schedule_list_screen.dart';
 import 'screens/incidents_screen.dart';
 import 'screens/branch_management_screen.dart';
+import 'screens/admin_panel_screen.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/supabase_config.dart';
@@ -25,7 +26,7 @@ void main() async {
 
   // Necesario para SQLite: web usa WASM/IndexedDB; escritorio usa FFI.
   if (kIsWeb) {
-    databaseFactory = databaseFactoryFfiWeb;
+    databaseFactory = databaseFactoryFfiWebNoWebWorker;
   } else {
     initDatabaseFactoryDesktop();
   }
@@ -88,6 +89,11 @@ class AuthWrapper extends StatelessWidget {
       return const LoginScreen();
     }
     
+    // Iniciar sincronización automática cuando el usuario se autentica
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      SyncService().startAutoSync(intervalSeconds: 300);
+    });
+    
     return MainDashboard(cameras: cameras);
   }
 }
@@ -108,6 +114,51 @@ class _MainDashboardState extends State<MainDashboard> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthService>().currentUser;
+    final isCliente = user?.isCliente ?? false;
+
+    // Screens and destinations for everyone
+    final allChildren = [
+      const AvailabilityScreen(),
+      if (!isCliente) const ScheduleListScreen(),
+      if (!isCliente) ArrivalRegistrationScreen(cameras: widget.cameras),
+      const IncidentsScreen(),
+      if (!isCliente) const RecordsScreen(),
+    ];
+
+    final allDestinations = [
+      const NavigationDestination(
+        icon: Icon(Icons.dashboard_outlined),
+        selectedIcon: Icon(Icons.dashboard),
+        label: 'Disponibilidad',
+      ),
+      if (!isCliente) const NavigationDestination(
+        icon: Icon(Icons.calendar_month_outlined),
+        selectedIcon: Icon(Icons.calendar_month),
+        label: 'Programación',
+      ),
+      if (!isCliente) const NavigationDestination(
+        icon: Icon(Icons.add_circle_outline),
+        selectedIcon: Icon(Icons.add_circle),
+        label: 'Registrar',
+      ),
+      const NavigationDestination(
+        icon: Icon(Icons.warning_outlined),
+        selectedIcon: Icon(Icons.warning),
+        label: 'Incidencias',
+      ),
+      if (!isCliente) const NavigationDestination(
+        icon: Icon(Icons.history_outlined),
+        selectedIcon: Icon(Icons.history),
+        label: 'Historial',
+      ),
+    ];
+
+    // Ajustar índice si el actual queda fuera de rango (ej: si se deslogeó un admin y entró un cliente)
+    if (_currentIndex >= allChildren.length) {
+      _currentIndex = 0;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gestión de Camiones'),
@@ -136,20 +187,23 @@ class _MainDashboardState extends State<MainDashboard> {
               context.read<ThemeProvider>().toggleTheme();
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.business),
-            tooltip: 'Administrar Sucursales',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const BranchManagementScreen()),
-              );
-            },
-          ),
+          if (user?.isAdmin ?? false)
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings),
+              tooltip: 'Administración',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
+                );
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'Cerrar sesión',
             onPressed: () {
+              // Detener sincronización antes de cerrar sesión
+              SyncService().stopAutoSync();
               context.read<AuthService>().logout();
             },
           ),
@@ -157,44 +211,12 @@ class _MainDashboardState extends State<MainDashboard> {
       ),
       body: IndexedStack(
         index: _currentIndex,
-        children: [
-          const AvailabilityScreen(),
-          const ScheduleListScreen(),
-          ArrivalRegistrationScreen(cameras: widget.cameras),
-          const IncidentsScreen(),
-          const RecordsScreen(),
-        ],
+        children: allChildren,
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) => setState(() => _currentIndex = index),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Disponibilidad',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month),
-            label: 'Programación',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.add_circle_outline),
-            selectedIcon: Icon(Icons.add_circle),
-            label: 'Registrar',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.warning_outlined),
-            selectedIcon: Icon(Icons.warning),
-            label: 'Incidencias',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
-            label: 'Historial',
-          ),
-        ],
+        destinations: allDestinations,
       ),
     );
   }

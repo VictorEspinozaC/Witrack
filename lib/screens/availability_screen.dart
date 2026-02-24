@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../db/app_database.dart';
 import '../models/models.dart';
 import '../theme/app_theme.dart';
+import '../services/auth_service.dart';
 import 'shipment_detail_screen.dart';
 
 /// Pantalla principal de disponibilidad en planta
@@ -23,19 +25,28 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   
   // Filtros
   ShipmentStatus? _selectedStatus;
-  int? _selectedBranchId;
+  String? _selectedBranchId;
 
   @override
   void initState() {
     super.initState();
-    _loadData();
+    // No podemos usar context aquí, así que llamamos a _loadData en el build o post-frame
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     
+    final auth = context.read<AuthService>();
+    final user = auth.currentUser;
+    final clientId = user?.isCliente == true ? user?.clientId : null;
+
     final branches = await _db.getAllBranches();
-    final shipments = await _db.getActiveShipments(branchId: _selectedBranchId);
+    final shipments = await _db.getActiveShipments(
+      branchId: _selectedBranchId,
+      clientId: clientId,
+    );
     
     // Filtrar por estado si está seleccionado
     final filtered = _selectedStatus != null
@@ -54,7 +65,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     _loadData();
   }
 
-  void _onBranchFilterChanged(int? branchId) {
+  void _onBranchFilterChanged(String? branchId) {
     setState(() => _selectedBranchId = branchId);
     _loadData();
   }
@@ -93,7 +104,14 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _shipments.isEmpty
                     ? _buildEmptyState()
-                    : _buildShipmentList(),
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth > 900) {
+                            return _buildBoardView();
+                          }
+                          return _buildShipmentList();
+                        },
+                      ),
           ),
         ],
       ),
@@ -188,6 +206,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       ShipmentStatus.enEspera,
       ShipmentStatus.enCarga,
       ShipmentStatus.cargado,
+      ShipmentStatus.amarre,
       ShipmentStatus.despachado,
     ];
 
@@ -322,6 +341,220 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         itemBuilder: (context, index) => _ShipmentCard(
           shipment: _shipments[index],
           onTap: () => _openDetail(_shipments[index]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBoardView() {
+    final columns = [
+      ShipmentStatus.esperaIngreso,
+      ShipmentStatus.enEspera,
+      ShipmentStatus.enCarga,
+      ShipmentStatus.cargado,
+      ShipmentStatus.amarre,
+      ShipmentStatus.despachado,
+      ShipmentStatus.incidencia,
+    ];
+
+    return Container(
+      color: Colors.grey.shade100,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: columns.map((status) {
+                  final columnShipments = _shipments.where((s) => s.status == status).toList();
+                  return _KanbanColumn(
+                    status: status,
+                    shipments: columnShipments,
+                    onShipmentTap: _openDetail,
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KanbanColumn extends StatelessWidget {
+  final ShipmentStatus status;
+  final List<Shipment> shipments;
+  final Function(Shipment) onShipmentTap;
+
+  const _KanbanColumn({
+    required this.status,
+    required this.shipments,
+    required this.onShipmentTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppTheme.getStatusColor(status.name);
+    
+    return Container(
+      width: 300,
+      margin: const EdgeInsets.only(right: 16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          // Header de la columna
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              border: Border(bottom: BorderSide(color: color.withOpacity(0.3), width: 2)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  status.displayName.toUpperCase(),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: color.withOpacity(0.8),
+                    letterSpacing: 1,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${shipments.length}',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10, color: color),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Lista de tarjetas
+          Expanded(
+            child: shipments.isEmpty
+                ? Center(
+                    child: Text(
+                      'Sin camiones',
+                      style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(8),
+                    itemCount: shipments.length,
+                    itemBuilder: (context, index) => _KanbanCard(
+                      shipment: shipments[index],
+                      onTap: () => onShipmentTap(shipments[index]),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _KanbanCard extends StatelessWidget {
+  final Shipment shipment;
+  final VoidCallback onTap;
+
+  const _KanbanCard({required this.shipment, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final dateFormat = DateFormat('HH:mm');
+    final timeInStatus = DateTime.now().difference(shipment.arrivalTime ?? shipment.createdAt);
+    final hours = timeInStatus.inHours;
+    final minutes = timeInStatus.inMinutes % 60;
+
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.only(bottom: 8),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              FutureBuilder<Truck?>(
+                future: AppDatabase.instance.getTruckById(shipment.truckId),
+                builder: (context, snapshot) {
+                  return Text(
+                    snapshot.data?.plate ?? 'Cargando...',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  );
+                },
+              ),
+              const SizedBox(height: 4),
+              FutureBuilder<Driver?>(
+                future: AppDatabase.instance.getDriverById(shipment.driverId),
+                builder: (context, snapshot) {
+                  return Text(
+                    snapshot.data?.name ?? '...',
+                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  );
+                },
+              ),
+              const Divider(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  FutureBuilder<Branch?>(
+                    future: AppDatabase.instance.getBranchById(shipment.branchId),
+                    builder: (context, snapshot) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withOpacity(0.05),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          snapshot.data?.code ?? '...',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
+                        ),
+                      );
+                    },
+                  ),
+                  Row(
+                    children: [
+                      Icon(Icons.access_time, size: 12, color: Colors.grey.shade400),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${hours}h ${minutes}m',
+                        style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 /// Tema premium de la aplicación
 class AppTheme {
@@ -18,6 +19,7 @@ class AppTheme {
     'enEspera': Color(0xFF42A5F5),       // Blue
     'enCarga': Color(0xFFAB47BC),        // Purple
     'cargado': Color(0xFF66BB6A),        // Green
+    'amarre': Color(0xFFFFD54F),         // Amber/Yellow
     'despachado': Color(0xFF26A69A),     // Teal
     'recibido': Color(0xFF4CAF50),       // Green dark
     'incidencia': Color(0xFFEF5350),     // Red
@@ -93,7 +95,7 @@ class AppTheme {
       color: Colors.grey.shade200,
       thickness: 1,
     ),
-    textTheme: const TextTheme(
+    textTheme: GoogleFonts.interTextTheme(const TextTheme(
       headlineLarge: TextStyle(
         fontSize: 28,
         fontWeight: FontWeight.bold,
@@ -123,7 +125,7 @@ class AppTheme {
         fontSize: 14,
         fontWeight: FontWeight.w500,
       ),
-    ),
+    )),
   );
 
   static ThemeData get darkTheme => ThemeData(
@@ -181,7 +183,7 @@ class AppTheme {
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     ),
-    // ... otros temas si son necesarios
+    textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
   );
 
   /// Obtiene el color para un estado de shipment

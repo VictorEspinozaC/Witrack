@@ -7,3 +7,7 @@ export 'shipment.dart';
 export 'schedule.dart';
 export 'load_photo.dart';
 export 'incident.dart';
+export 'transport_company.dart';
+export 'contact.dart';
+export 'client.dart';
+export 'supplier.dart';

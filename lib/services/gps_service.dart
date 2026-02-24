@@ -40,7 +40,7 @@ class GpsService {
   }
 
   /// Registra un evento de despacho con ubicación GPS
-  Future<void> dispatchWithLocation(int shipmentId) async {
+  Future<void> dispatchWithLocation(String shipmentId) async {
     // Intentar obtener ubicación (no bloqueante si falla)
     final position = await getCurrentLocation();
     

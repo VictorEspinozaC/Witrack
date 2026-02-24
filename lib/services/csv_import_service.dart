@@ -75,7 +75,7 @@ class CsvImportService {
           }
 
           // Buscar o crear camión si hay patente
-          int? truckId;
+          String? truckId;
           if (plate.isNotEmpty) {
             final truck = await _db.getOrCreateTruck(plate, TruckType.carga);
             truckId = truck.id;

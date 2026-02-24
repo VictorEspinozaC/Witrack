@@ -5,10 +5,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import '../db/app_database.dart';
 import '../models/models.dart';
+import '../services/sync_service.dart';
 import '../theme/app_theme.dart';
 
 class ReceptionScreen extends StatefulWidget {
-  final int shipmentId;
+  final String shipmentId;
 
   const ReceptionScreen({super.key, required this.shipmentId});
 
@@ -90,9 +91,10 @@ class _ReceptionScreenState extends State<ReceptionScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Recepción registrada correctamente')),
         );
+        // Sincronizar recepción
+        SyncService().syncAll();
         Navigator.pop(context, true); // Retorna true para indicar cambio
       }
-
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
