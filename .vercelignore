@@ -1,20 +1,25 @@
+# Platform-specific directories (not needed for web build)
 android/
 ios/
 linux/
 macos/
 windows/
+
+# Build artifacts (regenerated during build)
 build/app/
 build/linux/
 build/macos/
 build/windows/
+
+# Dart/Flutter cache
 .dart_tool/
 .pub-cache/
 .pub/
+
+# Test files (not needed in production)
 test/
-lib/
-*.dart
-pubspec.*
-analysis_options.yaml
+
+# Documentation and misc
 supabase_schema.sql
 RESUMEN_CORRECCIONES.md
 README.md
