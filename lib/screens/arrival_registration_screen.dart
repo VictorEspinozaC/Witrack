@@ -547,7 +547,7 @@ class _ArrivalRegistrationScreenState extends State<ArrivalRegistrationScreen> {
                   ),
                   items: _addresses.map((a) => DropdownMenuItem(
                     value: a.id,
-                    child: Text(a.address),
+                    child: Text(a.direccionFormateada, overflow: TextOverflow.ellipsis),
                   )).toList(),
                   onChanged: (v) => setState(() => _selectedAddressId = v),
                   validator: (v) => v == null ? 'Selecciona una dirección' : null,

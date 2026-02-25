@@ -22,7 +22,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   List<Shipment> _shipments = [];
   List<Branch> _branches = [];
   bool _loading = true;
-  
+  bool _isKanbanView = true; // Kanban es la vista por defecto
+
   // Filtros
   ShipmentStatus? _selectedStatus;
   String? _selectedBranchId;
@@ -86,6 +87,11 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         title: const Text('Disponibilidad en Planta'),
         actions: [
           IconButton(
+            icon: Icon(_isKanbanView ? Icons.view_list : Icons.view_kanban),
+            tooltip: _isKanbanView ? 'Vista Lista' : 'Vista Kanban',
+            onPressed: () => setState(() => _isKanbanView = !_isKanbanView),
+          ),
+          IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,
           ),
@@ -104,14 +110,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 ? const Center(child: CircularProgressIndicator())
                 : _shipments.isEmpty
                     ? _buildEmptyState()
-                    : LayoutBuilder(
-                        builder: (context, constraints) {
-                          if (constraints.maxWidth > 900) {
-                            return _buildBoardView();
-                          }
-                          return _buildShipmentList();
-                        },
-                      ),
+                    : _isKanbanView
+                        ? _buildBoardView()
+                        : _buildShipmentList(),
           ),
         ],
       ),

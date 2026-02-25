@@ -10,7 +10,7 @@ class AppDatabase {
   AppDatabase._();
 
   Database? _db;
-  static const int _version = 7;
+  static const int _version = 8;
   static const _uuid = Uuid();
 
   Future<Database> get db async {
@@ -47,8 +47,11 @@ class AppDatabase {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         rut TEXT UNIQUE NOT NULL,
-        billing_address TEXT,
-        zip_code TEXT,
+        region TEXT DEFAULT '',
+        comuna TEXT DEFAULT '',
+        calle TEXT DEFAULT '',
+        numeracion TEXT DEFAULT '',
+        depto TEXT DEFAULT '',
         remote_id TEXT UNIQUE,
         sync_status INTEGER DEFAULT 1,
         last_updated TEXT
@@ -76,8 +79,11 @@ class AppDatabase {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         rut TEXT UNIQUE NOT NULL,
-        billing_address TEXT,
-        zip_code TEXT,
+        region TEXT DEFAULT '',
+        comuna TEXT DEFAULT '',
+        calle TEXT DEFAULT '',
+        numeracion TEXT DEFAULT '',
+        depto TEXT DEFAULT '',
         remote_id TEXT UNIQUE,
         sync_status INTEGER DEFAULT 1,
         last_updated TEXT
@@ -89,8 +95,11 @@ class AppDatabase {
       CREATE TABLE dispatch_addresses (
         id TEXT PRIMARY KEY,
         client_id TEXT NOT NULL REFERENCES clients(id),
-        address TEXT NOT NULL,
-        zip_code TEXT,
+        region TEXT DEFAULT '',
+        comuna TEXT DEFAULT '',
+        calle TEXT DEFAULT '',
+        numeracion TEXT DEFAULT '',
+        depto TEXT DEFAULT '',
         remote_id TEXT UNIQUE,
         sync_status INTEGER DEFAULT 1,
         last_updated TEXT
@@ -102,7 +111,11 @@ class AppDatabase {
       CREATE TABLE suppliers (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
-        zip_code TEXT,
+        region TEXT DEFAULT '',
+        comuna TEXT DEFAULT '',
+        calle TEXT DEFAULT '',
+        numeracion TEXT DEFAULT '',
+        depto TEXT DEFAULT '',
         remote_id TEXT UNIQUE,
         sync_status INTEGER DEFAULT 1,
         last_updated TEXT
@@ -348,6 +361,50 @@ class AppDatabase {
         await d.execute('ALTER TABLE shipments ADD COLUMN dispatch_address_id TEXT REFERENCES dispatch_addresses(id)');
       } catch (e) {
         print('Error alter shipments: $e');
+      }
+    }
+
+    if (oldVersion < 8) {
+      // Migrar direcciones a campos estructurados (Región, Comuna, Calle, Numeración, Depto)
+      final tablesWithAddress = ['clients', 'transport_companies'];
+      for (final table in tablesWithAddress) {
+        for (final col in ['region', 'comuna', 'calle', 'numeracion', 'depto']) {
+          try {
+            await d.execute("ALTER TABLE $table ADD COLUMN $col TEXT DEFAULT ''");
+          } catch (e) {
+            print('Columna $col ya existe en $table: $e');
+          }
+        }
+        // Migrar billing_address existente → calle
+        try {
+          await d.execute("UPDATE $table SET calle = billing_address WHERE billing_address IS NOT NULL AND billing_address != '' AND (calle IS NULL OR calle = '')");
+        } catch (e) {
+          print('Error migrando billing_address en $table: $e');
+        }
+      }
+
+      // dispatch_addresses
+      for (final col in ['region', 'comuna', 'calle', 'numeracion', 'depto']) {
+        try {
+          await d.execute("ALTER TABLE dispatch_addresses ADD COLUMN $col TEXT DEFAULT ''");
+        } catch (e) {
+          print('Columna $col ya existe en dispatch_addresses: $e');
+        }
+      }
+      // Migrar address existente → calle
+      try {
+        await d.execute("UPDATE dispatch_addresses SET calle = address WHERE address IS NOT NULL AND address != '' AND (calle IS NULL OR calle = '')");
+      } catch (e) {
+        print('Error migrando address en dispatch_addresses: $e');
+      }
+
+      // suppliers (antes solo tenía zip_code)
+      for (final col in ['region', 'comuna', 'calle', 'numeracion', 'depto']) {
+        try {
+          await d.execute("ALTER TABLE suppliers ADD COLUMN $col TEXT DEFAULT ''");
+        } catch (e) {
+          print('Columna $col ya existe en suppliers: $e');
+        }
       }
     }
   }
