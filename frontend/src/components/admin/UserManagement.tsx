@@ -25,17 +25,10 @@ type UserWithBranch = Tables<'users'> & {
   branch?: { id: string; name: string } | null
 }
 
-const USER_ROLES = [
-  { value: 'admin', label: 'Administrador' },
-  { value: 'planta', label: 'Planta' },
-  { value: 'sucursal', label: 'Sucursal' },
-  { value: 'supervisor', label: 'Supervisor' },
-  { value: 'chofer', label: 'Chofer' },
-]
-
 export function UserManagement() {
   const [users, setUsers] = useState<UserWithBranch[]>([])
   const [branches, setBranches] = useState<Tables<'branches'>[]>([])
+  const [dbRoles, setDbRoles] = useState<Tables<'roles'>[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
 
@@ -63,9 +56,19 @@ export function UserManagement() {
     setBranches(data ?? [])
   }
 
+  async function loadRoles() {
+    const { data } = await supabase
+      .from('roles')
+      .select('*')
+      .eq('is_active', true)
+      .order('name')
+    setDbRoles(data ?? [])
+  }
+
   useEffect(() => {
     load()
     loadBranches()
+    loadRoles()
   }, [])
 
   function openEdit(u: UserWithBranch) {
@@ -118,7 +121,7 @@ export function UserManagement() {
     load()
   }
 
-  const roleLabel = (val: string) => USER_ROLES.find((r) => r.value === val)?.label ?? val
+  const roleLabel = (val: string) => dbRoles.find((r) => r.name === val)?.name ?? val
 
   return (
     <div className="space-y-4">
@@ -217,11 +220,13 @@ export function UserManagement() {
                 <Label>Rol *</Label>
                 <Select value={role} onValueChange={setRole}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Seleccionar rol..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {USER_ROLES.map((r) => (
-                      <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>
+                    {dbRoles.map((r) => (
+                      <SelectItem key={r.id} value={r.name}>
+                        {r.name}{r.description ? ` - ${r.description}` : ''}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

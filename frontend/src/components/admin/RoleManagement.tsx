@@ -15,37 +15,54 @@ import { supabase } from '@/lib/supabase'
 import type { Tables } from '@/lib/types'
 
 type RolePermissions = {
-  agendamiento: { read: boolean; write: boolean }
-  patio:        { read: boolean; write: boolean }
-  en_ruta:      { read: boolean; write: boolean }
-  incidencias:  { read: boolean; write: boolean }
-  admin:        boolean
+  dashboard:              { read: boolean; write: boolean }
+  agendamiento:           { read: boolean; write: boolean }
+  patio:                  { read: boolean; write: boolean }
+  en_ruta:                { read: boolean; write: boolean }
+  en_recepcion:           { read: boolean; write: boolean }
+  incidencias:            { read: boolean; write: boolean }
+  confirmacion_pedidos:   { read: boolean; write: boolean }
+  admin:                  boolean
 }
 
 const DEFAULT_PERMISSIONS: RolePermissions = {
-  agendamiento: { read: false, write: false },
-  patio:        { read: false, write: false },
-  en_ruta:      { read: false, write: false },
-  incidencias:  { read: false, write: false },
-  admin:        false,
+  dashboard:            { read: false, write: false },
+  agendamiento:         { read: false, write: false },
+  patio:                { read: false, write: false },
+  en_ruta:              { read: false, write: false },
+  en_recepcion:         { read: false, write: false },
+  incidencias:          { read: false, write: false },
+  confirmacion_pedidos: { read: false, write: false },
+  admin:                false,
 }
 
 const MODULES: { key: keyof Omit<RolePermissions, 'admin'>; label: string }[] = [
-  { key: 'agendamiento', label: 'Agendamiento' },
-  { key: 'patio',        label: 'Control de Patio' },
-  { key: 'en_ruta',      label: 'En Ruta' },
-  { key: 'incidencias',  label: 'Incidencias' },
+  { key: 'dashboard',            label: 'Dashboard' },
+  { key: 'agendamiento',         label: 'Agendamiento' },
+  { key: 'patio',                label: 'Control de Patio' },
+  { key: 'en_ruta',              label: 'En Ruta / Despacho' },
+  { key: 'en_recepcion',         label: 'En Recepcion' },
+  { key: 'incidencias',          label: 'Incidencias' },
+  { key: 'confirmacion_pedidos', label: 'Confirmacion Pedidos' },
 ]
+
+function parseMod(raw: Record<string, unknown>, key: string) {
+  const m = raw[key] as Record<string, boolean> | undefined
+  return { read: !!m?.read, write: !!m?.write }
+}
 
 function parsePermissions(raw: unknown): RolePermissions {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_PERMISSIONS }
   const p = raw as Record<string, unknown>
   return {
-    agendamiento: { read: !!(p.agendamiento as Record<string,boolean>)?.read, write: !!(p.agendamiento as Record<string,boolean>)?.write },
-    patio:        { read: !!(p.patio as Record<string,boolean>)?.read,        write: !!(p.patio as Record<string,boolean>)?.write },
-    en_ruta:      { read: !!(p.en_ruta as Record<string,boolean>)?.read,      write: !!(p.en_ruta as Record<string,boolean>)?.write },
-    incidencias:  { read: !!(p.incidencias as Record<string,boolean>)?.read,  write: !!(p.incidencias as Record<string,boolean>)?.write },
-    admin:        !!(p.admin),
+    dashboard:            parseMod(p, 'dashboard'),
+    agendamiento:         parseMod(p, 'agendamiento'),
+    patio:                parseMod(p, 'patio'),
+    en_ruta:              parseMod(p, 'en_ruta'),
+    en_recepcion:         parseMod(p, 'en_recepcion'),
+    incidencias:          parseMod(p, 'incidencias'),
+    confirmacion_pedidos: parseMod(p, 'confirmacion_pedidos'),
+    admin:                !!(p.admin),
   }
 }
 
