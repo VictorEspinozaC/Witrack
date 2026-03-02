@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { Truck, ArrowLeft, Mail } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function LoginPage() {
-  const { session, signIn, loading } = useAuth()
+  const { session, signIn, loading, passwordRecovery, clearPasswordRecovery } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -30,13 +30,12 @@ export default function LoginPage() {
   const [resetError, setResetError] = useState<string | null>(null)
   const [resetSuccess, setResetSuccess] = useState(false)
 
-  // Detect recovery token in URL hash
-  useState(() => {
-    const hash = window.location.hash
-    if (hash.includes('type=recovery')) {
+  // Detect PASSWORD_RECOVERY event from Supabase Auth context
+  useEffect(() => {
+    if (passwordRecovery) {
       setResetMode(true)
     }
-  })
+  }, [passwordRecovery])
 
   if (loading) return null
   if (session && !resetMode) return <Navigate to="/" replace />
@@ -88,6 +87,7 @@ export default function LoginPage() {
       setResetError(error.message)
     } else {
       setResetSuccess(true)
+      clearPasswordRecovery()
       // Clear URL hash
       window.history.replaceState(null, '', window.location.pathname)
       setTimeout(() => {
