@@ -32,9 +32,11 @@ interface PhoneInputProps {
   value: string
   onChange: (v: string) => void
   placeholder?: string
+  inputClassName?: string
+  selectClassName?: string
 }
 
-export function PhoneInput({ value, onChange, placeholder }: PhoneInputProps) {
+export function PhoneInput({ value, onChange, placeholder, inputClassName, selectClassName }: PhoneInputProps) {
   const parsed = parseValue(value)
   const [dialCode, setDialCode] = useState(parsed.dialCode)
   const [local, setLocal] = useState(parsed.local)
@@ -62,7 +64,7 @@ export function PhoneInput({ value, onChange, placeholder }: PhoneInputProps) {
   return (
     <div className="flex gap-2">
       <Select value={dialCode} onValueChange={handleDialChange}>
-        <SelectTrigger className="w-36 shrink-0">
+        <SelectTrigger className={`w-36 shrink-0${selectClassName ? ` ${selectClassName}` : ''}`}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -76,7 +78,7 @@ export function PhoneInput({ value, onChange, placeholder }: PhoneInputProps) {
         onChange={handleLocalChange}
         placeholder={ph}
         inputMode="numeric"
-        className="flex-1"
+        className={`flex-1${inputClassName ? ` ${inputClassName}` : ''}`}
       />
     </div>
   )
