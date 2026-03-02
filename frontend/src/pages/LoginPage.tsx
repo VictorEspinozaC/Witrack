@@ -21,9 +21,12 @@ export default function LoginPage() {
   // Recovery mode: 'select' | 'email' | 'whatsapp'
   const [recoveryMode, setRecoveryMode] = useState<false | 'select' | 'email' | 'whatsapp'>(false)
   const [recoveryEmail, setRecoveryEmail] = useState('')
-  const [recoverySent, setRecoverySent] = useState(false)
   const [recoverySubmitting, setRecoverySubmitting] = useState(false)
   const [recoveryError, setRecoveryError] = useState<string | null>(null)
+
+  // Email OTP state
+  const [emailStep, setEmailStep] = useState<'form' | 'otp' | 'newPassword' | 'success'>('form')
+  const [emailOtp, setEmailOtp] = useState('')
 
   // Password reset state (from email link)
   const [resetMode, setResetMode] = useState(false)
@@ -62,20 +65,94 @@ export default function LoginPage() {
     setSubmitting(false)
   }
 
-  async function handleRecovery(e: FormEvent) {
+  async function handleEmailOtpSend(e: FormEvent) {
     e.preventDefault()
+    if (!recoveryEmail) {
+      setRecoveryError('Ingresa tu correo electronico')
+      return
+    }
     setRecoveryError(null)
     setRecoverySubmitting(true)
 
-    const redirectUrl = `${window.location.origin}/login`
-    const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
-      redirectTo: redirectUrl,
-    })
+    try {
+      const { data, error } = await supabase.functions.invoke('email-otp', {
+        body: { email: recoveryEmail },
+      })
 
-    if (error) {
-      setRecoveryError(error.message)
-    } else {
-      setRecoverySent(true)
+      if (error) throw new Error(error.message)
+
+      if (data.error) {
+        setRecoveryError(data.error)
+      } else {
+        setEmailStep('otp')
+      }
+    } catch (err) {
+      setRecoveryError(err instanceof Error ? err.message : 'Error al enviar codigo')
+    }
+    setRecoverySubmitting(false)
+  }
+
+  async function handleEmailVerifyOtp(e: FormEvent) {
+    e.preventDefault()
+    if (emailOtp.length !== 6) {
+      setRecoveryError('Ingresa el codigo de 6 digitos')
+      return
+    }
+    setRecoveryError(null)
+    setRecoverySubmitting(true)
+
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-password-whatsapp', {
+        body: { action: 'verify-otp', email: recoveryEmail, otp_code: emailOtp },
+      })
+
+      if (error) throw new Error(error.message)
+
+      if (data.error) {
+        setRecoveryError(data.error)
+      } else if (data.verified) {
+        setEmailStep('newPassword')
+        setNewPassword('')
+        setConfirmPassword('')
+      }
+    } catch (err) {
+      setRecoveryError(err instanceof Error ? err.message : 'Error al verificar codigo')
+    }
+    setRecoverySubmitting(false)
+  }
+
+  async function handleEmailPasswordReset(e: FormEvent) {
+    e.preventDefault()
+    setRecoveryError(null)
+
+    if (newPassword.length < 6) {
+      setRecoveryError('La contrasena debe tener al menos 6 caracteres')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setRecoveryError('Las contrasenas no coinciden')
+      return
+    }
+
+    setRecoverySubmitting(true)
+
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-password-whatsapp', {
+        body: { action: 'reset-password', email: recoveryEmail, otp_code: emailOtp, new_password: newPassword },
+      })
+
+      if (error) throw new Error(error.message)
+
+      if (data.error) {
+        setRecoveryError(data.error)
+      } else {
+        setEmailStep('success')
+        setTimeout(() => {
+          exitRecoveryMode()
+        }, 3000)
+      }
+    } catch (err) {
+      setRecoveryError(err instanceof Error ? err.message : 'Error al cambiar contrasena')
     }
     setRecoverySubmitting(false)
   }
@@ -113,8 +190,10 @@ export default function LoginPage() {
   function enterRecoveryMode() {
     setRecoveryMode('select')
     setRecoveryEmail(email)
-    setRecoverySent(false)
     setRecoveryError(null)
+    // Reset email OTP state
+    setEmailStep('form')
+    setEmailOtp('')
     // Reset WhatsApp state
     setWaStep('sending')
     setWaPhone('')
@@ -125,8 +204,9 @@ export default function LoginPage() {
 
   function exitRecoveryMode() {
     setRecoveryMode(false)
-    setRecoverySent(false)
     setRecoveryError(null)
+    setEmailStep('form')
+    setEmailOtp('')
     setWaError(null)
   }
 
@@ -209,7 +289,7 @@ export default function LoginPage() {
     try {
       const phone = waPhone || waPhoneMasked
       const { data, error } = await supabase.functions.invoke('reset-password-whatsapp', {
-        body: { action: 'verify-otp', phone, otp_code: waOtp },
+        body: { action: 'verify-otp', phone, email: recoveryEmail, otp_code: waOtp },
       })
 
       if (error) throw new Error(error.message)
@@ -245,7 +325,7 @@ export default function LoginPage() {
     try {
       const phone = waPhone || waPhoneMasked
       const { data, error } = await supabase.functions.invoke('reset-password-whatsapp', {
-        body: { action: 'reset-password', phone, otp_code: waOtp, new_password: newPassword },
+        body: { action: 'reset-password', phone, email: recoveryEmail, otp_code: waOtp, new_password: newPassword },
       })
 
       if (error) throw new Error(error.message)
@@ -457,38 +537,33 @@ export default function LoginPage() {
     )
   }
 
-  // --- Email Recovery Form ---
+  // --- Email Recovery Flow (OTP) ---
   if (recoveryMode === 'email') {
     return (
       <div className={pageBase}>
         <Card className={cardBase}>
           <CardHeader className="text-center">
             <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
-              <Truck className="h-6 w-6 text-primary-foreground" />
+              <Mail className="h-6 w-6 text-primary-foreground" />
             </div>
-            <CardTitle className="text-xl">Recuperar por Email</CardTitle>
+            <CardTitle className="text-xl">
+              {emailStep === 'form' && 'Recuperar por Email'}
+              {emailStep === 'otp' && 'Ingresa el Codigo'}
+              {emailStep === 'newPassword' && 'Nueva Contrasena'}
+              {emailStep === 'success' && 'Listo!'}
+            </CardTitle>
             <p className="text-sm text-white/70">
-              {recoverySent
-                ? 'Revisa tu correo electronico'
-                : 'Ingresa tu correo para restablecer la contrasena'}
+              {emailStep === 'form' && 'Te enviaremos un codigo de verificacion a tu correo'}
+              {emailStep === 'otp' && `Enviamos un codigo de 6 digitos a ${recoveryEmail}`}
+              {emailStep === 'newPassword' && 'Codigo verificado. Ingresa tu nueva contrasena.'}
+              {emailStep === 'success' && 'Tu contrasena fue actualizada correctamente.'}
             </p>
           </CardHeader>
           <CardContent>
-            {recoverySent ? (
-              <div className="space-y-4 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20">
-                  <Mail className="h-6 w-6 text-green-300" />
-                </div>
-                <p className="text-sm text-white/80">
-                  Hemos enviado un enlace de recuperacion a <strong>{recoveryEmail}</strong>.
-                  Revisa tu bandeja de entrada y sigue las instrucciones.
-                </p>
-                <Button variant="outline" className="w-full border-white/30 text-white hover:bg-white/10" onClick={exitRecoveryMode}>
-                  <ArrowLeft className="h-4 w-4 mr-2" /> Volver al inicio de sesion
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={handleRecovery} className="space-y-4">
+
+            {/* Step: Email Form */}
+            {emailStep === 'form' && (
+              <form onSubmit={handleEmailOtpSend} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="recovery-email" className="text-white/90">Correo electronico</Label>
                   <Input id="recovery-email" type="email" placeholder="usuario@empresa.cl"
@@ -497,7 +572,7 @@ export default function LoginPage() {
                 </div>
                 {recoveryError && <p className="text-sm text-red-300">{recoveryError}</p>}
                 <Button type="submit" className="w-full" disabled={recoverySubmitting}>
-                  {recoverySubmitting ? 'Enviando...' : 'Enviar enlace de recuperacion'}
+                  {recoverySubmitting ? 'Enviando...' : 'Enviar codigo de verificacion'}
                 </Button>
                 <Button type="button" variant="ghost" className="w-full text-white/70 hover:text-white hover:bg-white/10"
                   onClick={() => setRecoveryMode('select')}>
@@ -505,6 +580,68 @@ export default function LoginPage() {
                 </Button>
               </form>
             )}
+
+            {/* Step: Enter OTP */}
+            {emailStep === 'otp' && (
+              <form onSubmit={handleEmailVerifyOtp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-white/90">Codigo de verificacion</Label>
+                  <Input
+                    value={emailOtp}
+                    onChange={(e) => setEmailOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="000000"
+                    inputMode="numeric"
+                    maxLength={6}
+                    className={`${DARK_INPUT} text-center text-2xl tracking-[0.5em] font-mono`}
+                    autoFocus
+                  />
+                </div>
+                {recoveryError && <p className="text-sm text-red-300">{recoveryError}</p>}
+                <Button type="submit" className="w-full" disabled={recoverySubmitting || emailOtp.length !== 6}>
+                  {recoverySubmitting ? 'Verificando...' : 'Verificar Codigo'}
+                </Button>
+                <button type="button" onClick={(e) => { setEmailOtp(''); setRecoveryError(null); handleEmailOtpSend(e as unknown as FormEvent) }}
+                  className="w-full text-xs text-white/60 hover:text-white underline underline-offset-2 transition-colors">
+                  Reenviar codigo
+                </button>
+                <Button type="button" variant="ghost" className="w-full text-white/70 hover:text-white hover:bg-white/10"
+                  onClick={() => { setEmailStep('form'); setRecoveryError(null) }}>
+                  <ArrowLeft className="h-4 w-4 mr-2" /> Volver
+                </Button>
+              </form>
+            )}
+
+            {/* Step: New Password */}
+            {emailStep === 'newPassword' && (
+              <form onSubmit={handleEmailPasswordReset} className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-white/90">Nueva contrasena</Label>
+                  <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                    required minLength={6} placeholder="Minimo 6 caracteres" className={DARK_INPUT} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-white/90">Confirmar contrasena</Label>
+                  <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                    required placeholder="Repite la contrasena" className={DARK_INPUT} />
+                </div>
+                {recoveryError && <p className="text-sm text-red-300">{recoveryError}</p>}
+                <Button type="submit" className="w-full" disabled={recoverySubmitting}>
+                  {recoverySubmitting ? 'Actualizando...' : 'Actualizar Contrasena'}
+                </Button>
+              </form>
+            )}
+
+            {/* Step: Success */}
+            {emailStep === 'success' && (
+              <div className="text-center space-y-3">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20">
+                  <CheckCircle className="h-6 w-6 text-green-300" />
+                </div>
+                <p className="text-sm text-green-300 font-medium">Contrasena actualizada correctamente</p>
+                <p className="text-xs text-white/60">Redirigiendo al inicio...</p>
+              </div>
+            )}
+
           </CardContent>
         </Card>
       </div>
