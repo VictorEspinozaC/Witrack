@@ -121,7 +121,7 @@ export function TruckDetailPanel({ shipment, open, onClose }: TruckDetailPanelPr
     const { error } = await supabase
       .from('shipments')
       .update({ driver_id: raFoundDriver.id, truck_id: raFoundTruck.id, branch_id: raBranchId })
-      .eq('id', shipment.id)
+      .eq('id', shipment!.id)
     setRaSaving(false)
     if (error) { toast.error('Error al reasignar'); return }
     toast.success('Reasignación guardada')

@@ -212,8 +212,8 @@ export function StateTransitionModal({
         extra.dispatch_documents = allDocs as unknown as TablesUpdate<'shipments'>['dispatch_documents']
       }
 
-      await onConfirm(shipment.id, nextStatus, extra)
-      toast.success(`${shipment.truck?.plate} - ${STATUS_LABELS[nextStatus]}`)
+      await onConfirm(shipment!.id, nextStatus!, extra)
+      toast.success(`${shipment!.truck?.plate} - ${STATUS_LABELS[nextStatus!]}`)
       cleanup()
       onClose()
     } catch {

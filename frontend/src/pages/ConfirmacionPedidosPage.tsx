@@ -97,7 +97,7 @@ export default function ConfirmacionPedidosPage() {
   // branchId: null = all branches, string = specific branch
   const branchId = branchFilter === 'all' ? null : branchFilter
 
-  const { schedules, loading, cancelSchedule, confirmSchedule } = useSchedules({
+  const { schedules, loading, cancelSchedule } = useSchedules({
     dateRange,
     branchId,
   })
@@ -177,15 +177,6 @@ export default function ConfirmacionPedidosPage() {
       toast.warning(`Servicio cancelado para ${dateLabel}`)
     } catch {
       toast.error('Error al cancelar servicio')
-    }
-  }
-
-  async function handleConfirmSchedule(s: ScheduleWithRelations) {
-    try {
-      await confirmSchedule(s.id)
-      toast.success('Servicio confirmado')
-    } catch {
-      toast.error('Error al confirmar servicio')
     }
   }
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
-import type { Tables } from '@/lib/types'
+import type { Tables, Json } from '@/lib/types'
 
 export interface SavedDocRef {
   name: string
@@ -139,7 +139,7 @@ export function useOrderConfirmation(scheduleId: string | null) {
           schedule_id: scheduleId,
           file_url: firstDoc?.url ?? '',
           file_name: firstDoc?.name ?? '',
-          files: uploadedDocs as unknown as Record<string, unknown>,
+          files: uploadedDocs as unknown as Json,
           uploaded_by: user.id,
           status: 'pending_approval',
         })
@@ -196,7 +196,7 @@ export function useOrderConfirmation(scheduleId: string | null) {
           .update({
             file_url: firstDoc?.url ?? confirmation.file_url,
             file_name: firstDoc?.name ?? confirmation.file_name,
-            files: allDocs as unknown as Record<string, unknown>,
+            files: allDocs as unknown as Json,
           })
           .eq('id', confirmation.id)
         if (error) throw error
@@ -208,7 +208,7 @@ export function useOrderConfirmation(scheduleId: string | null) {
             schedule_id: scheduleId,
             file_url: firstDoc?.url ?? '',
             file_name: firstDoc?.name ?? '',
-            files: allDocs as unknown as Record<string, unknown>,
+            files: allDocs as unknown as Json,
             uploaded_by: user.id,
             status: 'pending_approval',
           })
