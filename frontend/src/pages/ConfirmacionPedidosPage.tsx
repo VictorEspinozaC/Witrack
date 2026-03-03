@@ -192,7 +192,10 @@ export default function ConfirmacionPedidosPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Confirmacion Pedidos</h1>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Confirmacion de Pedidos</h1>
+          <p className="text-sm text-muted-foreground mt-1">Aprobacion y seguimiento de ordenes</p>
+        </div>
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">

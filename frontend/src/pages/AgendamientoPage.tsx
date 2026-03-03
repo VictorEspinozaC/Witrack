@@ -75,7 +75,10 @@ export default function AgendamientoPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Agendamiento</h1>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Agendamiento</h1>
+          <p className="text-sm text-muted-foreground mt-1">Planificacion semanal de servicios</p>
+        </div>
         <Button onClick={() => { setSelectedDate(undefined); setShowForm(true) }} className="gap-2">
           <Plus className="h-4 w-4" /> Nueva Agenda
         </Button>

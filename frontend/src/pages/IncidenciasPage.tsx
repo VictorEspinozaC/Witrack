@@ -70,7 +70,10 @@ export default function IncidenciasPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Incidencias</h1>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Incidencias</h1>
+          <p className="text-sm text-muted-foreground mt-1">Registro y seguimiento de incidencias</p>
+        </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-40">
             <SelectValue />

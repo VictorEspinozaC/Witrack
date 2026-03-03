@@ -128,7 +128,10 @@ export default function RecepcionPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">En Recepción</h1>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">En Recepcion</h1>
+          <p className="text-sm text-muted-foreground mt-1">Verificacion de entregas y recepcion de carga</p>
+        </div>
         <Badge variant="secondary" className="gap-1">
           <PackageCheck className="h-3 w-3" /> {shipments.length} recepciones hoy
         </Badge>

@@ -36,6 +36,17 @@ interface SidebarProps {
   onToggle: () => void
 }
 
+function SectionLabel({ collapsed, children }: { collapsed: boolean; children: string }) {
+  if (collapsed) return <div className="my-2 mx-3 border-t border-sidebar-border" />
+  return (
+    <div className="px-3 pt-4 pb-1">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
+        {children}
+      </span>
+    </div>
+  )
+}
+
 function NavItem({ item, collapsed }: { item: typeof navItems[number]; collapsed: boolean }) {
   return (
     <NavLink
@@ -44,15 +55,15 @@ function NavItem({ item, collapsed }: { item: typeof navItems[number]; collapsed
       title={collapsed ? item.label : undefined}
       className={({ isActive }) =>
         cn(
-          'flex items-center rounded-lg text-sm font-medium transition-colors',
-          collapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5',
+          'group flex items-center rounded-lg text-[13px] font-medium transition-all duration-200',
+          collapsed ? 'justify-center p-2.5 mx-1' : 'gap-3 px-3 py-2.5 mx-2',
           isActive
-            ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-            : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+            : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
         )
       }
     >
-      <item.icon className="h-5 w-5 shrink-0" />
+      <item.icon className={cn('h-[18px] w-[18px] shrink-0 transition-transform duration-200 group-hover:scale-105')} />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </NavLink>
   )
@@ -64,37 +75,44 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'flex h-full flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 shrink-0',
-        collapsed ? 'w-16' : 'w-64'
+        'flex h-full flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out shrink-0',
+        collapsed ? 'w-[68px]' : 'w-[260px]'
       )}
     >
       {/* Logo */}
-      <div className={cn('flex h-16 items-center border-b border-sidebar-border', collapsed ? 'justify-center px-2' : 'gap-3 px-6')}>
-        <Truck className="h-7 w-7 text-sidebar-primary shrink-0" />
-        {!collapsed && <span className="text-lg font-bold whitespace-nowrap">GestionCamiones</span>}
+      <div className={cn(
+        'flex h-16 items-center shrink-0',
+        collapsed ? 'justify-center px-2' : 'gap-3 px-5'
+      )}>
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary/20 shrink-0">
+          <Truck className="h-5 w-5 text-sidebar-primary" />
+        </div>
+        {!collapsed && (
+          <div className="flex flex-col">
+            <span className="text-sm font-bold tracking-tight whitespace-nowrap">GestionCamiones</span>
+            <span className="text-[10px] text-sidebar-foreground/40 font-medium">Plataforma Logistica</span>
+          </div>
+        )}
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 space-y-1 p-2">
+      <nav className="flex-1 space-y-0.5 py-2 overflow-y-auto">
+        <SectionLabel collapsed={collapsed}>Principal</SectionLabel>
         {navItems.map((item) => (
           <NavItem key={item.to} item={item} collapsed={collapsed} />
         ))}
       </nav>
 
-      {/* Bottom area: secondary + admin + toggle */}
-      <div className="space-y-1 p-2">
-        {/* Separator */}
-        <div className="my-1 border-t border-sidebar-border" />
-
-        {/* Confirmacion Pedidos */}
+      {/* Bottom area */}
+      <div className="space-y-0.5 pb-2">
+        <SectionLabel collapsed={collapsed}>Operaciones</SectionLabel>
         {secondaryItems.map((item) => (
           <NavItem key={item.to} item={item} collapsed={collapsed} />
         ))}
 
-        {/* Admin items */}
         {user?.role === 'admin' && (
           <>
-            <div className="my-1 border-t border-sidebar-border" />
+            <SectionLabel collapsed={collapsed}>Sistema</SectionLabel>
             {adminItems.map((item) => (
               <NavItem key={item.to} item={item} collapsed={collapsed} />
             ))}
@@ -102,13 +120,16 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         )}
 
         {/* Toggle button */}
-        <div className="mt-1 border-t border-sidebar-border pt-2">
+        <div className="mx-2 mt-2 border-t border-sidebar-border pt-2">
           <button
             onClick={onToggle}
-            className="flex w-full items-center justify-center rounded-lg p-2.5 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+            className={cn(
+              'flex w-full items-center rounded-lg p-2.5 text-sidebar-foreground/40 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200',
+              collapsed ? 'justify-center' : 'justify-center'
+            )}
             title={collapsed ? 'Expandir menu' : 'Colapsar menu'}
           >
-            {collapsed ? <ChevronsRight className="h-5 w-5" /> : <ChevronsLeft className="h-5 w-5" />}
+            {collapsed ? <ChevronsRight className="h-4 w-4" /> : <ChevronsLeft className="h-4 w-4" />}
           </button>
         </div>
       </div>

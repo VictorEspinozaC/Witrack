@@ -284,72 +284,54 @@ export default function DashboardPage() {
   }
 
   // ---------- Render ----------
+
+  const kpis = [
+    { label: 'Camiones Activos', value: activeCount, icon: Truck, color: 'text-primary', bgColor: 'bg-primary/10' },
+    { label: 'Despachados Hoy', value: dispatchedToday, icon: CheckCircle, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
+    { label: 'En Recepcion', value: enRecepcion, icon: PackageCheck, color: 'text-sky-600', bgColor: 'bg-sky-50' },
+    { label: 'Incidencias Abiertas', value: incidentCount, icon: AlertTriangle, color: 'text-red-600', bgColor: 'bg-red-50' },
+    { label: 'En Espera', value: (counts['agendado'] ?? 0) + (counts['en_puerta'] ?? 0), icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-50' },
+  ]
+
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-1">Resumen de operaciones en tiempo real</p>
+      </div>
 
       {/* KPI Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Camiones Activos</CardTitle>
-            <Truck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{activeCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Despachados Hoy</CardTitle>
-            <CheckCircle className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{dispatchedToday}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">En Recepcion</CardTitle>
-            <PackageCheck className="h-4 w-4 text-sky-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{enRecepcion}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Incidencias Abiertas</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{incidentCount}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">En Espera</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{(counts['agendado'] ?? 0) + (counts['en_puerta'] ?? 0)}</div>
-          </CardContent>
-        </Card>
+        {kpis.map((kpi) => (
+          <Card key={kpi.label} className="relative overflow-hidden">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{kpi.label}</p>
+                  <p className="text-3xl font-bold tracking-tight">{kpi.value}</p>
+                </div>
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${kpi.bgColor}`}>
+                  <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Status Summary */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Resumen por Estado</CardTitle>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold">Resumen por Estado</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {SHIPMENT_STATES.map((status) => (
-              <div key={status} className="flex items-center gap-3 rounded-lg border p-3">
-                <div className={`h-3 w-3 rounded-full ${STATUS_DOT_COLORS[status as ShipmentStatus]}`} />
-                <div>
-                  <p className="text-sm font-medium">{STATUS_LABELS[status as ShipmentStatus]}</p>
-                  <p className="text-2xl font-bold">{counts[status] ?? 0}</p>
+              <div key={status} className="flex items-center gap-3 rounded-lg border border-border/60 p-3 transition-colors hover:bg-muted/30">
+                <div className={`h-2.5 w-2.5 rounded-full ${STATUS_DOT_COLORS[status as ShipmentStatus]}`} />
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-muted-foreground">{STATUS_LABELS[status as ShipmentStatus]}</p>
+                  <p className="text-xl font-bold">{counts[status] ?? 0}</p>
                 </div>
               </div>
             ))}
@@ -357,36 +339,40 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* ====== NEW SECTIONS ====== */}
-
+      {/* Notifications + Tasks */}
       <div className="grid gap-4 lg:grid-cols-2">
-        {/* Section 1: Notificaciones Recientes */}
         <Card className="lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Bell className="h-5 w-5 text-amber-500" />
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50">
+                <Bell className="h-4 w-4 text-amber-600" />
+              </div>
               Notificaciones Recientes
             </CardTitle>
           </CardHeader>
           <CardContent>
             {notifications.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Sin notificaciones recientes</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">Sin notificaciones recientes</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {notifications.map((notif) => (
                   <div
                     key={notif.id}
-                    className="flex items-start gap-3 rounded-lg border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                    className="flex items-start gap-3 rounded-lg p-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
                     onClick={() => navigate(notif.link)}
                   >
                     {notif.type === 'incident' ? (
-                      <AlertTriangle className="h-4 w-4 mt-0.5 text-destructive shrink-0" />
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 shrink-0 mt-0.5">
+                        <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
+                      </div>
                     ) : (
-                      <XCircle className="h-4 w-4 mt-0.5 text-red-500 shrink-0" />
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-50 shrink-0 mt-0.5">
+                        <XCircle className="h-3.5 w-3.5 text-orange-600" />
+                      </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm leading-snug">{notif.text}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{relativeTime(notif.time)}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{relativeTime(notif.time)}</p>
                     </div>
                   </div>
                 ))}
@@ -395,26 +381,27 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Section 2: Tareas Pendientes */}
         <Card className="lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <ClipboardList className="h-5 w-5 text-blue-500" />
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50">
+                <ClipboardList className="h-4 w-4 text-blue-600" />
+              </div>
               Tareas Pendientes
             </CardTitle>
           </CardHeader>
           <CardContent>
             {pendingTasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Sin tareas pendientes</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">Sin tareas pendientes</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {pendingTasks.map((task) => (
                   <div
                     key={task.id}
-                    className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                    className="flex items-center gap-3 rounded-lg p-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
                     onClick={() => navigate(task.link)}
                   >
-                    <div className="h-2.5 w-2.5 rounded-full bg-blue-500 shrink-0" />
+                    <div className="h-2 w-2 rounded-full bg-primary shrink-0" />
                     <p className="text-sm leading-snug">{task.text}</p>
                   </div>
                 ))}
@@ -424,51 +411,53 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Section 3: Aprobaciones Pendientes (supervisor/admin only) */}
+      {/* Pending Approvals (supervisor/admin only) */}
       {(user?.role === 'supervisor' || user?.role === 'admin') && (
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Shield className="h-5 w-5 text-violet-500" />
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base font-semibold flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-50">
+                <Shield className="h-4 w-4 text-violet-600" />
+              </div>
               Aprobaciones Pendientes
             </CardTitle>
             {pendingApprovals.length > 0 && (
-              <Button variant="outline" size="sm" onClick={() => navigate('/confirmacion-pedidos')}>
+              <Button variant="outline" size="sm" className="text-xs" onClick={() => navigate('/confirmacion-pedidos')}>
                 Ir a revision
               </Button>
             )}
           </CardHeader>
           <CardContent>
             {pendingApprovals.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Sin aprobaciones pendientes</p>
+              <p className="text-sm text-muted-foreground py-6 text-center">Sin aprobaciones pendientes</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left">
-                      <th className="pb-2 pr-4 font-medium text-muted-foreground">Sucursal</th>
-                      <th className="pb-2 pr-4 font-medium text-muted-foreground">Patente</th>
-                      <th className="pb-2 pr-4 font-medium text-muted-foreground">Fecha Agendada</th>
-                      <th className="pb-2 pr-4 font-medium text-muted-foreground">Archivo</th>
-                      <th className="pb-2 font-medium text-muted-foreground">Subido</th>
+                      <th className="pb-2.5 pr-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">Sucursal</th>
+                      <th className="pb-2.5 pr-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">Patente</th>
+                      <th className="pb-2.5 pr-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">Fecha Agendada</th>
+                      <th className="pb-2.5 pr-4 text-xs font-medium text-muted-foreground uppercase tracking-wide">Archivo</th>
+                      <th className="pb-2.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Subido</th>
                     </tr>
                   </thead>
                   <tbody>
                     {pendingApprovals.map((appr) => (
                       <tr
                         key={appr.id}
-                        className="border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
+                        className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
                         onClick={() => navigate('/confirmacion-pedidos')}
                       >
-                        <td className="py-2.5 pr-4">{appr.branchName}</td>
-                        <td className="py-2.5 pr-4 font-mono text-xs">{appr.truckPlate}</td>
-                        <td className="py-2.5 pr-4">
+                        <td className="py-3 pr-4 font-medium">{appr.branchName}</td>
+                        <td className="py-3 pr-4 font-mono text-xs">{appr.truckPlate}</td>
+                        <td className="py-3 pr-4">
                           {appr.scheduledDate
                             ? format(new Date(appr.scheduledDate + 'T12:00:00'), 'dd/MM/yyyy')
                             : '-'}
                         </td>
-                        <td className="py-2.5 pr-4 max-w-[200px] truncate">{appr.fileName}</td>
-                        <td className="py-2.5 text-muted-foreground">{relativeTime(appr.uploadedAt)}</td>
+                        <td className="py-3 pr-4 max-w-[200px] truncate text-muted-foreground">{appr.fileName}</td>
+                        <td className="py-3 text-muted-foreground text-xs">{relativeTime(appr.uploadedAt)}</td>
                       </tr>
                     ))}
                   </tbody>

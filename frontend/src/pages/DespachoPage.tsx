@@ -151,7 +151,10 @@ export default function DespachoPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">En Ruta</h1>
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">En Ruta</h1>
+          <p className="text-sm text-muted-foreground mt-1">Seguimiento de camiones despachados</p>
+        </div>
         <Badge variant="secondary" className="gap-1">
           <Truck className="h-3 w-3" /> {enRuta.length} despachos hoy
         </Badge>

@@ -79,13 +79,16 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Configuracion</h1>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Configuracion</h1>
+        <p className="text-sm text-muted-foreground mt-1">Administracion de maestros y sistema</p>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {maestros.map((m) => (
           <Card
             key={m.key}
-            className="cursor-pointer transition-all hover:shadow-lg hover:-translate-y-1 active:scale-[0.98]"
+            className="cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]"
             onClick={() => setActiveWindow(m.key)}
           >
             <CardContent className="flex flex-col items-center gap-3 p-6 text-center">

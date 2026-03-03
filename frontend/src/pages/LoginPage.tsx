@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { PhoneInput } from '@/components/ui/PhoneInput'
 
-const DARK_INPUT = 'bg-white/10 border-white/20 text-white placeholder:text-white/40'
+const DARK_INPUT = 'bg-white/8 border-white/15 text-white placeholder:text-white/35 focus:border-white/30'
 
 export default function LoginPage() {
   const { session, signIn, loading, passwordRecovery, clearPasswordRecovery } = useAuth()
@@ -348,29 +348,38 @@ export default function LoginPage() {
   // RENDER
   // ===========================
 
-  const cardBase = 'w-full max-w-sm bg-white/20 backdrop-blur-lg border-white/30 text-white'
-  const pageBase = 'flex min-h-screen items-center justify-center bg-gradient-to-br from-[#293D62] via-[#448FAD] to-[#50ADC6] p-4'
+  const cardBase = 'w-full max-w-sm border-0 bg-white/8 backdrop-blur-xl text-white shadow-2xl'
+  const pageBase = 'flex min-h-screen items-center justify-center bg-[#0f1923] p-4 relative overflow-hidden'
+
+  const bgDecoration = (
+    <>
+      <div className="absolute inset-0 bg-gradient-to-br from-[#0f1923] via-[#162a3e] to-[#0f1923]" />
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full bg-primary/5 blur-3xl -translate-y-1/3 translate-x-1/4" />
+      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-primary/5 blur-3xl translate-y-1/3 -translate-x-1/4" />
+    </>
+  )
 
   // --- Password Reset Form (from email link) ---
   if (resetMode) {
     return (
       <div className={pageBase}>
-        <Card className={cardBase}>
+        {bgDecoration}
+        <Card className={cardBase + ' relative z-10'}>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20">
               <Truck className="h-6 w-6 text-primary-foreground" />
             </div>
             <CardTitle className="text-xl">Nueva Contrasena</CardTitle>
-            <p className="text-sm text-white/70">Ingresa tu nueva contrasena</p>
+            <p className="text-sm text-white/50">Ingresa tu nueva contrasena</p>
           </CardHeader>
           <CardContent>
             {resetSuccess ? (
               <div className="text-center space-y-3">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20">
-                  <CheckCircle className="h-6 w-6 text-green-300" />
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15">
+                  <CheckCircle className="h-6 w-6 text-emerald-400" />
                 </div>
-                <p className="text-sm text-green-300 font-medium">Contrasena actualizada correctamente</p>
-                <p className="text-xs text-white/60">Redirigiendo al inicio...</p>
+                <p className="text-sm text-emerald-400 font-medium">Contrasena actualizada correctamente</p>
+                <p className="text-xs text-white/40">Redirigiendo al inicio...</p>
               </div>
             ) : (
               <form onSubmit={handlePasswordReset} className="space-y-4">
@@ -384,7 +393,7 @@ export default function LoginPage() {
                   <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                     required placeholder="Repite la contrasena" className={DARK_INPUT} />
                 </div>
-                {resetError && <p className="text-sm text-red-300">{resetError}</p>}
+                {resetError && <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{resetError}</p>}
                 <Button type="submit" className="w-full" disabled={resetSubmitting}>
                   {resetSubmitting ? 'Actualizando...' : 'Actualizar Contrasena'}
                 </Button>
@@ -400,9 +409,10 @@ export default function LoginPage() {
   if (recoveryMode === 'whatsapp') {
     return (
       <div className={pageBase}>
-        <Card className={cardBase}>
+        {bgDecoration}
+        <Card className={cardBase + ' relative z-10'}>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-green-600">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-green-600">
               <MessageSquare className="h-6 w-6 text-white" />
             </div>
             <CardTitle className="text-xl">
@@ -412,7 +422,7 @@ export default function LoginPage() {
               {waStep === 'success' && 'Listo!'}
               {waStep === 'sending' && 'Enviando...'}
             </CardTitle>
-            <p className="text-sm text-white/70">
+            <p className="text-sm text-white/50">
               {waStep === 'needsPhone' && 'No tienes un telefono registrado. Ingresa uno para recibir el codigo.'}
               {waStep === 'otp' && (waPhoneMasked
                 ? `Enviamos un codigo de 6 digitos a ${waPhoneMasked}`
@@ -437,11 +447,11 @@ export default function LoginPage() {
                     selectClassName="bg-white/10 border-white/20 text-white"
                   />
                 </div>
-                {waError && <p className="text-sm text-red-300">{waError}</p>}
+                {waError && <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{waError}</p>}
                 <Button type="submit" className="w-full" disabled={waSubmitting}>
                   {waSubmitting ? 'Enviando...' : 'Enviar Codigo por WhatsApp'}
                 </Button>
-                <Button type="button" variant="ghost" className="w-full text-white/70 hover:text-white hover:bg-white/10"
+                <Button type="button" variant="ghost" className="w-full text-white/50 hover:text-white hover:bg-white/5"
                   onClick={() => setRecoveryMode('select')}>
                   <ArrowLeft className="h-4 w-4 mr-2" /> Volver
                 </Button>
@@ -463,15 +473,15 @@ export default function LoginPage() {
                     autoFocus
                   />
                 </div>
-                {waError && <p className="text-sm text-red-300">{waError}</p>}
+                {waError && <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{waError}</p>}
                 <Button type="submit" className="w-full" disabled={waSubmitting || waOtp.length !== 6}>
                   {waSubmitting ? 'Verificando...' : 'Verificar Codigo'}
                 </Button>
                 <button type="button" onClick={handleWhatsAppStart}
-                  className="w-full text-xs text-white/60 hover:text-white underline underline-offset-2 transition-colors">
+                  className="w-full text-xs text-white/40 hover:text-white underline underline-offset-2 transition-colors">
                   Reenviar codigo
                 </button>
-                <Button type="button" variant="ghost" className="w-full text-white/70 hover:text-white hover:bg-white/10"
+                <Button type="button" variant="ghost" className="w-full text-white/50 hover:text-white hover:bg-white/5"
                   onClick={() => setRecoveryMode('select')}>
                   <ArrowLeft className="h-4 w-4 mr-2" /> Volver
                 </Button>
@@ -491,7 +501,7 @@ export default function LoginPage() {
                   <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                     required placeholder="Repite la contrasena" className={DARK_INPUT} />
                 </div>
-                {waError && <p className="text-sm text-red-300">{waError}</p>}
+                {waError && <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{waError}</p>}
                 <Button type="submit" className="w-full" disabled={waSubmitting}>
                   {waSubmitting ? 'Actualizando...' : 'Actualizar Contrasena'}
                 </Button>
@@ -501,11 +511,11 @@ export default function LoginPage() {
             {/* Step: Success */}
             {waStep === 'success' && (
               <div className="text-center space-y-3">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20">
-                  <CheckCircle className="h-6 w-6 text-green-300" />
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15">
+                  <CheckCircle className="h-6 w-6 text-emerald-400" />
                 </div>
-                <p className="text-sm text-green-300 font-medium">Contrasena actualizada correctamente</p>
-                <p className="text-xs text-white/60">Redirigiendo al inicio...</p>
+                <p className="text-sm text-emerald-400 font-medium">Contrasena actualizada correctamente</p>
+                <p className="text-xs text-white/40">Redirigiendo al inicio...</p>
               </div>
             )}
 
@@ -514,7 +524,7 @@ export default function LoginPage() {
               <div className="space-y-4">
                 {waError ? (
                   <>
-                    <p className="text-sm text-red-300">{waError}</p>
+                    <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{waError}</p>
                     <Button className="w-full" onClick={handleWhatsAppStart} disabled={waSubmitting}>
                       Reintentar
                     </Button>
@@ -524,7 +534,7 @@ export default function LoginPage() {
                     <div className="animate-spin mx-auto h-8 w-8 border-2 border-white/30 border-t-white rounded-full" />
                   </div>
                 )}
-                <Button type="button" variant="ghost" className="w-full text-white/70 hover:text-white hover:bg-white/10"
+                <Button type="button" variant="ghost" className="w-full text-white/50 hover:text-white hover:bg-white/5"
                   onClick={() => setRecoveryMode('select')}>
                   <ArrowLeft className="h-4 w-4 mr-2" /> Volver
                 </Button>
@@ -541,9 +551,10 @@ export default function LoginPage() {
   if (recoveryMode === 'email') {
     return (
       <div className={pageBase}>
-        <Card className={cardBase}>
+        {bgDecoration}
+        <Card className={cardBase + ' relative z-10'}>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20">
               <Mail className="h-6 w-6 text-primary-foreground" />
             </div>
             <CardTitle className="text-xl">
@@ -552,7 +563,7 @@ export default function LoginPage() {
               {emailStep === 'newPassword' && 'Nueva Contrasena'}
               {emailStep === 'success' && 'Listo!'}
             </CardTitle>
-            <p className="text-sm text-white/70">
+            <p className="text-sm text-white/50">
               {emailStep === 'form' && 'Te enviaremos un codigo de verificacion a tu correo'}
               {emailStep === 'otp' && `Enviamos un codigo de 6 digitos a ${recoveryEmail}`}
               {emailStep === 'newPassword' && 'Codigo verificado. Ingresa tu nueva contrasena.'}
@@ -570,11 +581,11 @@ export default function LoginPage() {
                     value={recoveryEmail} onChange={(e) => setRecoveryEmail(e.target.value)}
                     required className={DARK_INPUT} />
                 </div>
-                {recoveryError && <p className="text-sm text-red-300">{recoveryError}</p>}
+                {recoveryError && <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{recoveryError}</p>}
                 <Button type="submit" className="w-full" disabled={recoverySubmitting}>
                   {recoverySubmitting ? 'Enviando...' : 'Enviar codigo de verificacion'}
                 </Button>
-                <Button type="button" variant="ghost" className="w-full text-white/70 hover:text-white hover:bg-white/10"
+                <Button type="button" variant="ghost" className="w-full text-white/50 hover:text-white hover:bg-white/5"
                   onClick={() => setRecoveryMode('select')}>
                   <ArrowLeft className="h-4 w-4 mr-2" /> Volver
                 </Button>
@@ -596,15 +607,15 @@ export default function LoginPage() {
                     autoFocus
                   />
                 </div>
-                {recoveryError && <p className="text-sm text-red-300">{recoveryError}</p>}
+                {recoveryError && <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{recoveryError}</p>}
                 <Button type="submit" className="w-full" disabled={recoverySubmitting || emailOtp.length !== 6}>
                   {recoverySubmitting ? 'Verificando...' : 'Verificar Codigo'}
                 </Button>
                 <button type="button" onClick={(e) => { setEmailOtp(''); setRecoveryError(null); handleEmailOtpSend(e as unknown as FormEvent) }}
-                  className="w-full text-xs text-white/60 hover:text-white underline underline-offset-2 transition-colors">
+                  className="w-full text-xs text-white/40 hover:text-white underline underline-offset-2 transition-colors">
                   Reenviar codigo
                 </button>
-                <Button type="button" variant="ghost" className="w-full text-white/70 hover:text-white hover:bg-white/10"
+                <Button type="button" variant="ghost" className="w-full text-white/50 hover:text-white hover:bg-white/5"
                   onClick={() => { setEmailStep('form'); setRecoveryError(null) }}>
                   <ArrowLeft className="h-4 w-4 mr-2" /> Volver
                 </Button>
@@ -624,7 +635,7 @@ export default function LoginPage() {
                   <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
                     required placeholder="Repite la contrasena" className={DARK_INPUT} />
                 </div>
-                {recoveryError && <p className="text-sm text-red-300">{recoveryError}</p>}
+                {recoveryError && <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{recoveryError}</p>}
                 <Button type="submit" className="w-full" disabled={recoverySubmitting}>
                   {recoverySubmitting ? 'Actualizando...' : 'Actualizar Contrasena'}
                 </Button>
@@ -634,11 +645,11 @@ export default function LoginPage() {
             {/* Step: Success */}
             {emailStep === 'success' && (
               <div className="text-center space-y-3">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20">
-                  <CheckCircle className="h-6 w-6 text-green-300" />
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15">
+                  <CheckCircle className="h-6 w-6 text-emerald-400" />
                 </div>
-                <p className="text-sm text-green-300 font-medium">Contrasena actualizada correctamente</p>
-                <p className="text-xs text-white/60">Redirigiendo al inicio...</p>
+                <p className="text-sm text-emerald-400 font-medium">Contrasena actualizada correctamente</p>
+                <p className="text-xs text-white/40">Redirigiendo al inicio...</p>
               </div>
             )}
 
@@ -652,13 +663,14 @@ export default function LoginPage() {
   if (recoveryMode === 'select') {
     return (
       <div className={pageBase}>
-        <Card className={cardBase}>
+        {bgDecoration}
+        <Card className={cardBase + ' relative z-10'}>
           <CardHeader className="text-center">
-            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20">
               <Truck className="h-6 w-6 text-primary-foreground" />
             </div>
             <CardTitle className="text-xl">Recuperar Cuenta</CardTitle>
-            <p className="text-sm text-white/70">Ingresa tu correo y elige como recuperar tu contrasena</p>
+            <p className="text-sm text-white/50">Ingresa tu correo y elige como recuperar tu contrasena</p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -672,13 +684,13 @@ export default function LoginPage() {
                 disabled={!recoveryEmail}>
                 <Mail className="h-4 w-4 mr-2" /> Recuperar por Email
               </Button>
-              <Button className="w-full bg-green-600 hover:bg-green-700 text-white"
+              <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                 onClick={handleWhatsAppStart} disabled={!recoveryEmail || waSubmitting}>
                 <MessageSquare className="h-4 w-4 mr-2" />
                 {waSubmitting ? 'Enviando...' : 'Recuperar por WhatsApp'}
               </Button>
             </div>
-            <Button type="button" variant="ghost" className="w-full text-white/70 hover:text-white hover:bg-white/10"
+            <Button type="button" variant="ghost" className="w-full text-white/50 hover:text-white hover:bg-white/5"
               onClick={exitRecoveryMode}>
               <ArrowLeft className="h-4 w-4 mr-2" /> Volver
             </Button>
@@ -691,13 +703,14 @@ export default function LoginPage() {
   // --- Login Form ---
   return (
     <div className={pageBase}>
-      <Card className={cardBase}>
+      {bgDecoration}
+      <Card className={cardBase + ' relative z-10'}>
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/20">
             <Truck className="h-6 w-6 text-primary-foreground" />
           </div>
           <CardTitle className="text-xl">Gestion de Camiones</CardTitle>
-          <p className="text-sm text-white/70">Inicia sesion para continuar</p>
+          <p className="text-sm text-white/50">Inicia sesion para continuar</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -710,14 +723,14 @@ export default function LoginPage() {
               <div className="flex items-center justify-between">
                 <Label htmlFor="password" className="text-white/90">Contrasena</Label>
                 <button type="button" onClick={enterRecoveryMode}
-                  className="text-xs text-white/60 hover:text-white underline underline-offset-2 transition-colors">
+                  className="text-xs text-white/40 hover:text-white underline underline-offset-2 transition-colors">
                   Olvidaste tu contrasena?
                 </button>
               </div>
               <Input id="password" type="password" value={password}
                 onChange={(e) => setPassword(e.target.value)} required className={DARK_INPUT} />
             </div>
-            {error && <p className="text-sm text-red-300">{error}</p>}
+            {error && <p className="text-sm text-red-400 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>}
             <Button type="submit" className="w-full" disabled={submitting}>
               {submitting ? 'Ingresando...' : 'Ingresar'}
             </Button>
