@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { Tables } from '@/lib/types'
+import type { RolePermissions } from '@/lib/permissions'
+import { DEFAULT_PERMISSIONS, parsePermissions } from '@/lib/permissions'
 
 type UserProfile = Tables<'users'>
 
@@ -10,6 +12,8 @@ interface AuthContextType {
   user: UserProfile | null
   loading: boolean
   passwordRecovery: boolean
+  permissions: RolePermissions
+  permissionsLoading: boolean
   clearPasswordRecovery: () => void
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
@@ -22,6 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [passwordRecovery, setPasswordRecovery] = useState(false)
+  const [permissions, setPermissions] = useState<RolePermissions>({ ...DEFAULT_PERMISSIONS })
+  const [permissionsLoading, setPermissionsLoading] = useState(true)
 
   async function fetchProfile(userId: string) {
     const { data } = await supabase
@@ -30,6 +36,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('id', userId)
       .single()
     setUser(data)
+
+    // Load permissions from roles table
+    if (data?.role) {
+      const { data: roleData } = await supabase
+        .from('roles')
+        .select('permissions')
+        .eq('name', data.role)
+        .eq('is_active', true)
+        .single()
+      setPermissions(roleData ? parsePermissions(roleData.permissions) : { ...DEFAULT_PERMISSIONS })
+    } else {
+      setPermissions({ ...DEFAULT_PERMISSIONS })
+    }
+    setPermissionsLoading(false)
   }
 
   useEffect(() => {
@@ -65,6 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
     setUser(null)
     setSession(null)
+    setPermissions({ ...DEFAULT_PERMISSIONS })
+    setPermissionsLoading(true)
   }
 
   function clearPasswordRecovery() {
@@ -72,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ session, user, loading, passwordRecovery, clearPasswordRecovery, signIn, signOut }}>
+    <AuthContext.Provider value={{ session, user, loading, passwordRecovery, permissions, permissionsLoading, clearPasswordRecovery, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   )

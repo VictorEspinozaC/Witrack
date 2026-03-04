@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/table'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
+import { usePermissions } from '@/hooks/usePermissions'
+import { ReadOnlyBanner } from '@/components/shared/ReadOnlyBanner'
 import { toast } from 'sonner'
 import type { Tables } from '@/lib/types'
 
@@ -25,6 +27,8 @@ type DispatchedShipment = Tables<'shipments'> & {
 
 export default function DespachoPage() {
   const { user } = useAuth()
+  const { canWrite } = usePermissions()
+  const readOnly = !canWrite('en_ruta')
   const [enRuta, setEnRuta] = useState<DispatchedShipment[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -159,6 +163,7 @@ export default function DespachoPage() {
           <Truck className="h-3 w-3" /> {enRuta.length} despachos hoy
         </Badge>
       </div>
+      {readOnly && <ReadOnlyBanner />}
 
       {loading ? (
         <div className="flex h-32 items-center justify-center">

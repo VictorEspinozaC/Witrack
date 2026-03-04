@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from '@/context/AuthContext'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute'
+import { PermissionGuard } from '@/components/layout/PermissionGuard'
 import { Toaster } from '@/components/ui/sonner'
 import LoginPage from '@/pages/LoginPage'
 import DashboardPage from '@/pages/DashboardPage'
@@ -27,13 +28,13 @@ export default function App() {
             }
           >
             <Route index element={<DashboardPage />} />
-            <Route path="patio" element={<PatioPage />} />
-            <Route path="agendamiento" element={<AgendamientoPage />} />
-            <Route path="incidencias" element={<IncidenciasPage />} />
-            <Route path="despacho" element={<DespachoPage />} />
-            <Route path="recepcion" element={<RecepcionPage />} />
-            <Route path="confirmacion-pedidos" element={<ConfirmacionPedidosPage />} />
-            <Route path="admin" element={<AdminPage />} />
+            <Route path="patio" element={<PermissionGuard><PatioPage /></PermissionGuard>} />
+            <Route path="agendamiento" element={<PermissionGuard><AgendamientoPage /></PermissionGuard>} />
+            <Route path="incidencias" element={<PermissionGuard><IncidenciasPage /></PermissionGuard>} />
+            <Route path="despacho" element={<PermissionGuard><DespachoPage /></PermissionGuard>} />
+            <Route path="recepcion" element={<PermissionGuard><RecepcionPage /></PermissionGuard>} />
+            <Route path="confirmacion-pedidos" element={<PermissionGuard><ConfirmacionPedidosPage /></PermissionGuard>} />
+            <Route path="admin" element={<PermissionGuard><AdminPage /></PermissionGuard>} />
           </Route>
         </Routes>
         <Toaster />

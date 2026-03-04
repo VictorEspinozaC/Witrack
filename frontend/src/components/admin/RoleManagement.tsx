@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,58 +13,15 @@ import {
 } from '@/components/ui/dialog'
 import { supabase } from '@/lib/supabase'
 import type { Tables } from '@/lib/types'
+import {
+  type RolePermissions,
+  type PermissionModule,
+  DEFAULT_PERMISSIONS,
+  MODULE_CONFIG,
+  parsePermissions,
+} from '@/lib/permissions'
 
-type RolePermissions = {
-  dashboard:              { read: boolean; write: boolean }
-  agendamiento:           { read: boolean; write: boolean }
-  patio:                  { read: boolean; write: boolean }
-  en_ruta:                { read: boolean; write: boolean }
-  en_recepcion:           { read: boolean; write: boolean }
-  incidencias:            { read: boolean; write: boolean }
-  confirmacion_pedidos:   { read: boolean; write: boolean }
-  admin:                  boolean
-}
-
-const DEFAULT_PERMISSIONS: RolePermissions = {
-  dashboard:            { read: false, write: false },
-  agendamiento:         { read: false, write: false },
-  patio:                { read: false, write: false },
-  en_ruta:              { read: false, write: false },
-  en_recepcion:         { read: false, write: false },
-  incidencias:          { read: false, write: false },
-  confirmacion_pedidos: { read: false, write: false },
-  admin:                false,
-}
-
-const MODULES: { key: keyof Omit<RolePermissions, 'admin'>; label: string }[] = [
-  { key: 'dashboard',            label: 'Dashboard' },
-  { key: 'agendamiento',         label: 'Agendamiento' },
-  { key: 'patio',                label: 'Control de Patio' },
-  { key: 'en_ruta',              label: 'En Ruta / Despacho' },
-  { key: 'en_recepcion',         label: 'En Recepcion' },
-  { key: 'incidencias',          label: 'Incidencias' },
-  { key: 'confirmacion_pedidos', label: 'Confirmacion Pedidos' },
-]
-
-function parseMod(raw: Record<string, unknown>, key: string) {
-  const m = raw[key] as Record<string, boolean> | undefined
-  return { read: !!m?.read, write: !!m?.write }
-}
-
-function parsePermissions(raw: unknown): RolePermissions {
-  if (!raw || typeof raw !== 'object') return { ...DEFAULT_PERMISSIONS }
-  const p = raw as Record<string, unknown>
-  return {
-    dashboard:            parseMod(p, 'dashboard'),
-    agendamiento:         parseMod(p, 'agendamiento'),
-    patio:                parseMod(p, 'patio'),
-    en_ruta:              parseMod(p, 'en_ruta'),
-    en_recepcion:         parseMod(p, 'en_recepcion'),
-    incidencias:          parseMod(p, 'incidencias'),
-    confirmacion_pedidos: parseMod(p, 'confirmacion_pedidos'),
-    admin:                !!(p.admin),
-  }
-}
+const MODULES = Object.entries(MODULE_CONFIG) as [PermissionModule, { label: string; route: string }][]
 
 export function RoleManagement() {
   const [roles, setRoles] = useState<Tables<'roles'>[]>([])
@@ -98,20 +55,57 @@ export function RoleManagement() {
     setShowForm(true)
   }
 
-  function setModuleRead(key: keyof Omit<RolePermissions, 'admin'>, val: boolean) {
-    setPermissions((p) => ({ ...p, [key]: { ...p[key], read: val } }))
+  function openDuplicate(r: Tables<'roles'>) {
+    setEditId(null)
+    setRoleName(r.name + '_copia')
+    setRoleDescription(r.description ?? '')
+    setPermissions(parsePermissions(r.permissions))
+    setShowForm(true)
   }
 
-  function setModuleWrite(key: keyof Omit<RolePermissions, 'admin'>, val: boolean) {
-    setPermissions((p) => ({ ...p, [key]: { ...p[key], write: val } }))
+  function setModuleRead(key: PermissionModule, val: boolean) {
+    setPermissions((p) => ({
+      ...p,
+      [key]: { ...p[key], read: val, write: val ? p[key].write : false },
+    }))
   }
+
+  function setModuleWrite(key: PermissionModule, val: boolean) {
+    setPermissions((p) => ({
+      ...p,
+      [key]: { read: val ? true : p[key].read, write: val },
+    }))
+  }
+
+  function setAllRead(val: boolean) {
+    setPermissions((p) => {
+      const next = { ...p }
+      for (const [key] of MODULES) {
+        next[key] = { read: val, write: val ? p[key].write : false }
+      }
+      return next
+    })
+  }
+
+  function setAllWrite(val: boolean) {
+    setPermissions((p) => {
+      const next = { ...p }
+      for (const [key] of MODULES) {
+        next[key] = { read: val ? true : p[key].read, write: val }
+      }
+      return next
+    })
+  }
+
+  const allRead = MODULES.every(([key]) => permissions[key].read)
+  const allWrite = MODULES.every(([key]) => permissions[key].write)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!roleName.trim()) return
 
     const payload = {
-      name: roleName.trim(),
+      name: roleName.trim().toLowerCase(),
       description: roleDescription.trim() || null,
       permissions: permissions as unknown as import('@/lib/types').Json,
     }
@@ -144,8 +138,8 @@ export function RoleManagement() {
           <thead className="bg-muted/50">
             <tr>
               <th className="text-left p-3 font-medium">Nombre</th>
-              <th className="text-left p-3 font-medium">Descripción</th>
-              <th className="text-left p-3 font-medium">Admin</th>
+              <th className="text-left p-3 font-medium">Descripcion</th>
+              <th className="text-left p-3 font-medium">Permisos</th>
               <th className="text-left p-3 font-medium">Estado</th>
               <th className="text-left p-3 font-medium">Acciones</th>
             </tr>
@@ -162,10 +156,31 @@ export function RoleManagement() {
                 const p = parsePermissions(r.permissions)
                 return (
                   <tr key={r.id} className="border-t">
-                    <td className="p-3 font-medium">{r.name}</td>
-                    <td className="p-3 text-muted-foreground">{r.description ?? '---'}</td>
                     <td className="p-3">
-                      {p.admin ? <Badge variant="default">Sí</Badge> : <Badge variant="outline">No</Badge>}
+                      <span className="font-medium">{r.name}</span>
+                      {p.admin && <Badge variant="default" className="ml-2 text-[10px]">Admin</Badge>}
+                    </td>
+                    <td className="p-3 text-muted-foreground text-xs">{r.description ?? '---'}</td>
+                    <td className="p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {MODULES.map(([key, { label }]) => {
+                          const mod = p[key]
+                          if (!mod.read && !mod.write) return null
+                          return (
+                            <Badge
+                              key={key}
+                              variant="outline"
+                              className={`text-[10px] ${mod.write ? 'border-primary/40 bg-primary/5' : 'border-muted-foreground/30'}`}
+                            >
+                              {label.length > 12 ? label.slice(0, 10) + '..' : label}
+                              <span className="ml-0.5 opacity-60">{mod.write ? 'RW' : 'R'}</span>
+                            </Badge>
+                          )
+                        })}
+                        {MODULES.every(([key]) => !p[key].read && !p[key].write) && !p.admin && (
+                          <span className="text-xs text-muted-foreground">Sin permisos</span>
+                        )}
+                      </div>
                     </td>
                     <td className="p-3">
                       <Badge
@@ -177,9 +192,14 @@ export function RoleManagement() {
                       </Badge>
                     </td>
                     <td className="p-3">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openEdit(r)} title="Editar">
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => openDuplicate(r)} title="Duplicar">
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -205,42 +225,60 @@ export function RoleManagement() {
                 <Input value={roleName} onChange={(e) => setRoleName(e.target.value)} required placeholder="Ej: supervisor" />
               </div>
               <div>
-                <Label>Descripción</Label>
-                <Input value={roleDescription} onChange={(e) => setRoleDescription(e.target.value)} placeholder="Breve descripción" />
+                <Label>Descripcion</Label>
+                <Input value={roleDescription} onChange={(e) => setRoleDescription(e.target.value)} placeholder="Breve descripcion" />
               </div>
             </div>
 
             <div>
-              <Label className="mb-2 block">Permisos por Módulo</Label>
+              <Label className="mb-2 block">Permisos por Modulo</Label>
               <div className="rounded-lg border overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50">
                     <tr>
-                      <th className="text-left p-2 font-medium">Módulo</th>
-                      <th className="text-center p-2 font-medium">Leer</th>
-                      <th className="text-center p-2 font-medium">Escribir</th>
+                      <th className="text-left p-2 font-medium">Modulo</th>
+                      <th className="text-center p-2 font-medium">
+                        <div className="flex flex-col items-center gap-1">
+                          <span>Leer</span>
+                          <Checkbox
+                            checked={allRead}
+                            onCheckedChange={(v) => setAllRead(!!v)}
+                            className="h-3 w-3"
+                          />
+                        </div>
+                      </th>
+                      <th className="text-center p-2 font-medium">
+                        <div className="flex flex-col items-center gap-1">
+                          <span>Escribir</span>
+                          <Checkbox
+                            checked={allWrite}
+                            onCheckedChange={(v) => setAllWrite(!!v)}
+                            className="h-3 w-3"
+                          />
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {MODULES.map((m) => (
-                      <tr key={m.key} className="border-t">
-                        <td className="p-2">{m.label}</td>
+                    {MODULES.map(([key, { label }]) => (
+                      <tr key={key} className="border-t">
+                        <td className="p-2">{label}</td>
                         <td className="p-2 text-center">
                           <Checkbox
-                            checked={permissions[m.key].read}
-                            onCheckedChange={(v) => setModuleRead(m.key, !!v)}
+                            checked={permissions[key].read}
+                            onCheckedChange={(v) => setModuleRead(key, !!v)}
                           />
                         </td>
                         <td className="p-2 text-center">
                           <Checkbox
-                            checked={permissions[m.key].write}
-                            onCheckedChange={(v) => setModuleWrite(m.key, !!v)}
+                            checked={permissions[key].write}
+                            onCheckedChange={(v) => setModuleWrite(key, !!v)}
                           />
                         </td>
                       </tr>
                     ))}
-                    <tr className="border-t">
-                      <td className="p-2 font-medium">Administración</td>
+                    <tr className="border-t bg-muted/30">
+                      <td className="p-2 font-medium">Administracion (acceso total)</td>
                       <td className="p-2 text-center" colSpan={2}>
                         <Checkbox
                           checked={permissions.admin}
@@ -251,6 +289,9 @@ export function RoleManagement() {
                   </tbody>
                 </table>
               </div>
+              {permissions.admin && (
+                <p className="text-xs text-amber-600 mt-1">El permiso de administracion otorga acceso total a todos los modulos.</p>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

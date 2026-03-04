@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/dialog'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
+import { usePermissions } from '@/hooks/usePermissions'
+import { ReadOnlyBanner } from '@/components/shared/ReadOnlyBanner'
 import { INCIDENT_TYPES } from '@/lib/constants'
 import type { Tables } from '@/lib/types'
 
@@ -31,6 +33,8 @@ type IncidentWithShipment = Tables<'incidents'> & {
 
 export default function IncidenciasPage() {
   const { user } = useAuth()
+  const { canWrite } = usePermissions()
+  const readOnly = !canWrite('incidencias')
   const [incidents, setIncidents] = useState<IncidentWithShipment[]>([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState<string>('all')
@@ -85,6 +89,7 @@ export default function IncidenciasPage() {
           </SelectContent>
         </Select>
       </div>
+      {readOnly && <ReadOnlyBanner />}
 
       {loading ? (
         <div className="flex h-32 items-center justify-center">

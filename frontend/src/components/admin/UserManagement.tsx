@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Plus, Pencil } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -103,21 +104,41 @@ export function UserManagement() {
       phone: phone || null,
     }
 
+    let error: { message: string } | null = null
+
     if (editId) {
-      await supabase.from('users').update(payload).eq('id', editId)
+      const res = await supabase.from('users').update(payload).eq('id', editId)
+      error = res.error
     } else {
-      // Crear usuario sin cuenta auth (ID temporal)
-      await supabase.from('users').insert({
+      const res = await supabase.from('users').insert({
         ...payload,
         id: crypto.randomUUID(),
       })
+      error = res.error
     }
+
+    if (error) {
+      // El trigger validate_user_role lanza error si el rol no existe o esta inactivo
+      if (error.message.includes('no es un rol válido') || error.message.includes('no es un rol activo')) {
+        toast.error(`Rol "${role}" no es válido o no está activo. Verifica la configuración de roles.`)
+      } else {
+        toast.error(`Error al guardar: ${error.message}`)
+      }
+      return
+    }
+
+    toast.success(editId ? 'Usuario actualizado' : 'Usuario creado')
     setShowForm(false)
     load()
   }
 
   async function toggleActive(u: Tables<'users'>) {
-    await supabase.from('users').update({ is_active: !u.is_active }).eq('id', u.id)
+    const { error } = await supabase.from('users').update({ is_active: !u.is_active }).eq('id', u.id)
+    if (error) {
+      toast.error(`Error al cambiar estado: ${error.message}`)
+      return
+    }
+    toast.success(u.is_active ? 'Usuario desactivado' : 'Usuario activado')
     load()
   }
 

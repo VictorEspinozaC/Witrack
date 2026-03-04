@@ -11,20 +11,21 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react'
-import { useAuth } from '@/context/AuthContext'
+import { usePermissions } from '@/hooks/usePermissions'
 import { cn } from '@/lib/utils'
+import type { PermissionModule } from '@/lib/permissions'
 
-const navItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/agendamiento', icon: CalendarDays, label: 'Agendamiento' },
-  { to: '/patio', icon: Warehouse, label: 'Control de Patio' },
-  { to: '/despacho', icon: Truck, label: 'En Ruta' },
-  { to: '/recepcion', icon: PackageCheck, label: 'En Recepcion' },
-  { to: '/incidencias', icon: AlertTriangle, label: 'Incidencias' },
+const navItems: { to: string; icon: typeof LayoutDashboard; label: string; module: PermissionModule }[] = [
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard', module: 'dashboard' },
+  { to: '/agendamiento', icon: CalendarDays, label: 'Agendamiento', module: 'agendamiento' },
+  { to: '/patio', icon: Warehouse, label: 'Control de Patio', module: 'patio' },
+  { to: '/despacho', icon: Truck, label: 'En Ruta', module: 'en_ruta' },
+  { to: '/recepcion', icon: PackageCheck, label: 'En Recepcion', module: 'en_recepcion' },
+  { to: '/incidencias', icon: AlertTriangle, label: 'Incidencias', module: 'incidencias' },
 ]
 
-const secondaryItems = [
-  { to: '/confirmacion-pedidos', icon: ClipboardCheck, label: 'Confirmacion Pedidos' },
+const secondaryItems: { to: string; icon: typeof ClipboardCheck; label: string; module: PermissionModule }[] = [
+  { to: '/confirmacion-pedidos', icon: ClipboardCheck, label: 'Confirmacion Pedidos', module: 'confirmacion_pedidos' },
 ]
 
 const adminItems = [
@@ -70,7 +71,10 @@ function NavItem({ item, collapsed }: { item: typeof navItems[number]; collapsed
 }
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
-  const { user } = useAuth()
+  const { isAdmin, canRead } = usePermissions()
+
+  const visibleNavItems = navItems.filter(item => canRead(item.module))
+  const visibleSecondaryItems = secondaryItems.filter(item => canRead(item.module))
 
   return (
     <aside
@@ -97,20 +101,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Main Navigation */}
       <nav className="flex-1 space-y-0.5 py-2 overflow-y-auto">
-        <SectionLabel collapsed={collapsed}>Principal</SectionLabel>
-        {navItems.map((item) => (
+        {visibleNavItems.length > 0 && <SectionLabel collapsed={collapsed}>Principal</SectionLabel>}
+        {visibleNavItems.map((item) => (
           <NavItem key={item.to} item={item} collapsed={collapsed} />
         ))}
       </nav>
 
       {/* Bottom area */}
       <div className="space-y-0.5 pb-2">
-        <SectionLabel collapsed={collapsed}>Operaciones</SectionLabel>
-        {secondaryItems.map((item) => (
+        {visibleSecondaryItems.length > 0 && <SectionLabel collapsed={collapsed}>Operaciones</SectionLabel>}
+        {visibleSecondaryItems.map((item) => (
           <NavItem key={item.to} item={item} collapsed={collapsed} />
         ))}
 
-        {user?.role === 'admin' && (
+        {isAdmin && (
           <>
             <SectionLabel collapsed={collapsed}>Sistema</SectionLabel>
             {adminItems.map((item) => (

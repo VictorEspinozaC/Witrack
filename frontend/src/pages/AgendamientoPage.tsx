@@ -14,8 +14,12 @@ import {
 import { ScheduleForm } from '@/components/agendamiento/ScheduleForm'
 import { ScheduleList } from '@/components/agendamiento/ScheduleList'
 import { useSchedules } from '@/hooks/useSchedules'
+import { usePermissions } from '@/hooks/usePermissions'
+import { ReadOnlyBanner } from '@/components/shared/ReadOnlyBanner'
 
 export default function AgendamientoPage() {
+  const { canWrite } = usePermissions()
+  const readOnly = !canWrite('agendamiento')
   const [weekOffset, setWeekOffset] = useState(0)
   const [showForm, setShowForm] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | undefined>()
@@ -79,10 +83,13 @@ export default function AgendamientoPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Agendamiento</h1>
           <p className="text-sm text-muted-foreground mt-1">Planificacion semanal de servicios</p>
         </div>
-        <Button onClick={() => { setSelectedDate(undefined); setShowForm(true) }} className="gap-2">
-          <Plus className="h-4 w-4" /> Nueva Agenda
-        </Button>
+        {!readOnly && (
+          <Button onClick={() => { setSelectedDate(undefined); setShowForm(true) }} className="gap-2">
+            <Plus className="h-4 w-4" /> Nueva Agenda
+          </Button>
+        )}
       </div>
+      {readOnly && <ReadOnlyBanner />}
 
       <div className="flex items-center gap-3 flex-wrap">
         <Button variant="outline" size="icon" onClick={() => setWeekOffset(weekOffset - 1)}>

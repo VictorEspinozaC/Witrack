@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/select'
 import { useSchedules, type ScheduleWithRelations } from '@/hooks/useSchedules'
 import { OrderConfirmationDialog } from '@/components/confirmacion/OrderConfirmationDialog'
+import { usePermissions } from '@/hooks/usePermissions'
+import { ReadOnlyBanner } from '@/components/shared/ReadOnlyBanner'
 import { getNextBusinessDay } from '@/lib/businessDays'
 import { supabase } from '@/lib/supabase'
 import type { Tables } from '@/lib/types'
@@ -54,6 +56,8 @@ const COLUMNS: { key: string; label: string; variant: 'default' | 'secondary' | 
 ]
 
 export default function ConfirmacionPedidosPage() {
+  const { canWrite } = usePermissions()
+  const readOnly = !canWrite('confirmacion_pedidos')
   const [weekOffset, setWeekOffset] = useState(0)
   const [selectedDate, setSelectedDate] = useState<string | undefined>()
   const [branchFilter, setBranchFilter] = useState<string>('all')
@@ -197,6 +201,7 @@ export default function ConfirmacionPedidosPage() {
           <p className="text-sm text-muted-foreground mt-1">Aprobacion y seguimiento de ordenes</p>
         </div>
       </div>
+      {readOnly && <ReadOnlyBanner />}
 
       <div className="flex items-center gap-3 flex-wrap">
         <Button variant="outline" size="icon" onClick={() => setWeekOffset(weekOffset - 1)}>

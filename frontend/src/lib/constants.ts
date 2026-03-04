@@ -72,14 +72,6 @@ export const INCIDENT_TYPES = [
   { value: 'other', label: 'Otro' },
 ] as const;
 
-export const USER_ROLES = [
-  { value: 'admin', label: 'Administrador' },
-  { value: 'planta', label: 'Planta' },
-  { value: 'sucursal', label: 'Sucursal' },
-  { value: 'supervisor', label: 'Supervisor' },
-  { value: 'chofer', label: 'Chofer' },
-] as const;
-
 export const ORDER_CONFIRMATION_STATUS = {
   pending_approval: { label: 'Pendiente Aprobacion', color: 'bg-amber-100 text-amber-800 border-amber-300' },
   approved:         { label: 'Aprobado',             color: 'bg-green-100 text-green-800 border-green-300' },

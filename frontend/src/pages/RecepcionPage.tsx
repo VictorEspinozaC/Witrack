@@ -16,6 +16,8 @@ import {
 } from '@/components/ui/table'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
+import { usePermissions } from '@/hooks/usePermissions'
+import { ReadOnlyBanner } from '@/components/shared/ReadOnlyBanner'
 import { RecepcionIncidentDialog } from '@/components/recepcion/RecepcionIncidentDialog'
 import type { Tables } from '@/lib/types'
 
@@ -26,6 +28,8 @@ type ReceivedShipment = Tables<'shipments'> & {
 
 export default function RecepcionPage() {
   const { user } = useAuth()
+  const { canWrite } = usePermissions()
+  const readOnly = !canWrite('en_recepcion')
   const [shipments, setShipments] = useState<ReceivedShipment[]>([])
   const [loading, setLoading] = useState(true)
   const [incidenciaShipment, setIncidenciaShipment] = useState<ReceivedShipment | null>(null)
@@ -136,6 +140,7 @@ export default function RecepcionPage() {
           <PackageCheck className="h-3 w-3" /> {shipments.length} recepciones hoy
         </Badge>
       </div>
+      {readOnly && <ReadOnlyBanner />}
 
       {loading ? (
         <div className="flex h-32 items-center justify-center">
