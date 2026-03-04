@@ -13,6 +13,7 @@ import DespachoPage from '@/pages/DespachoPage'
 import RecepcionPage from '@/pages/RecepcionPage'
 import AdminPage from '@/pages/AdminPage'
 import ConfirmacionPedidosPage from '@/pages/ConfirmacionPedidosPage'
+import TarifasPage from '@/pages/TarifasPage'
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="despacho" element={<PermissionGuard><DespachoPage /></PermissionGuard>} />
             <Route path="recepcion" element={<PermissionGuard><RecepcionPage /></PermissionGuard>} />
             <Route path="confirmacion-pedidos" element={<PermissionGuard><ConfirmacionPedidosPage /></PermissionGuard>} />
+            <Route path="tarifas" element={<PermissionGuard><TarifasPage /></PermissionGuard>} />
             <Route path="admin" element={<PermissionGuard><AdminPage /></PermissionGuard>} />
           </Route>
         </Routes>

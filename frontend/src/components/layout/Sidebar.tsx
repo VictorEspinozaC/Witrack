@@ -8,6 +8,7 @@ import {
   PackageCheck,
   Settings,
   ClipboardCheck,
+  DollarSign,
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react'
@@ -26,6 +27,7 @@ const navItems: { to: string; icon: typeof LayoutDashboard; label: string; modul
 
 const secondaryItems: { to: string; icon: typeof ClipboardCheck; label: string; module: PermissionModule }[] = [
   { to: '/confirmacion-pedidos', icon: ClipboardCheck, label: 'Confirmacion Pedidos', module: 'confirmacion_pedidos' },
+  { to: '/tarifas', icon: DollarSign, label: 'Tarifas', module: 'tarifas' },
 ]
 
 const adminItems = [

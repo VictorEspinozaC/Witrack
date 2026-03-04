@@ -9,6 +9,7 @@ export type RolePermissions = {
   en_recepcion: ModulePermission
   incidencias: ModulePermission
   confirmacion_pedidos: ModulePermission
+  tarifas: ModulePermission
   admin: boolean
 }
 
@@ -23,6 +24,7 @@ export const DEFAULT_PERMISSIONS: RolePermissions = {
   en_recepcion: { read: false, write: false },
   incidencias: { read: false, write: false },
   confirmacion_pedidos: { read: false, write: false },
+  tarifas: { read: false, write: false },
   admin: false,
 }
 
@@ -35,6 +37,7 @@ export const MODULE_CONFIG: Record<PermissionModule, { label: string; route: str
   en_recepcion: { label: 'En Recepcion', route: '/recepcion' },
   incidencias: { label: 'Incidencias', route: '/incidencias' },
   confirmacion_pedidos: { label: 'Confirmacion Pedidos', route: '/confirmacion-pedidos' },
+  tarifas: { label: 'Tarifas', route: '/tarifas' },
 }
 
 // ---- Reverse lookup: route path → permission module key ----
@@ -61,6 +64,7 @@ export function parsePermissions(raw: unknown): RolePermissions {
     en_recepcion: parseMod(p, 'en_recepcion'),
     incidencias: parseMod(p, 'incidencias'),
     confirmacion_pedidos: parseMod(p, 'confirmacion_pedidos'),
+    tarifas: parseMod(p, 'tarifas'),
     admin: !!p.admin,
   }
 }

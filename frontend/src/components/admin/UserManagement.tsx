@@ -157,8 +157,7 @@ export function UserManagement() {
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
-              <th className="text-left p-3 font-medium">Email</th>
-              <th className="text-left p-3 font-medium">Nombre</th>
+              <th className="text-left p-3 font-medium">Usuario</th>
               <th className="text-left p-3 font-medium">Rol</th>
               <th className="text-left p-3 font-medium">Sucursal</th>
               <th className="text-left p-3 font-medium">Telefono</th>
@@ -169,15 +168,19 @@ export function UserManagement() {
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-muted-foreground">
+                <td colSpan={6} className="p-6 text-center text-muted-foreground">
                   Sin usuarios registrados
                 </td>
               </tr>
             ) : (
               users.map((u) => (
                 <tr key={u.id} className="border-t">
-                  <td className="p-3">{u.email}</td>
-                  <td className="p-3 font-medium">{u.full_name ?? '---'}</td>
+                  <td className="p-3">
+                    <div className="flex flex-col">
+                      <span className="font-medium">{u.full_name ?? 'Sin nombre'}</span>
+                      <span className="text-xs text-muted-foreground">{u.email}</span>
+                    </div>
+                  </td>
                   <td className="p-3">
                     <Badge variant="outline">{roleLabel(u.role)}</Badge>
                   </td>

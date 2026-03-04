@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Building2, Truck, Users, PackageSearch, UserCheck, ShieldCheck, ShieldHalf } from 'lucide-react'
+import { Building2, Truck, Users, PackageSearch, UserCheck, ShieldCheck, ShieldHalf, Clock } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { WindowDialog } from '@/components/shared/WindowDialog'
 import { BranchManagement } from '@/components/admin/BranchManagement'
@@ -9,8 +9,9 @@ import { TruckManagement } from '@/components/admin/TruckManagement'
 import { DriverManagement } from '@/components/admin/DriverManagement'
 import { UserManagement } from '@/components/admin/UserManagement'
 import { RoleManagement } from '@/components/admin/RoleManagement'
+import { ShipmentTimeEditor } from '@/components/admin/ShipmentTimeEditor'
 
-type MaestroKey = 'branches' | 'suppliers' | 'clients' | 'trucks' | 'drivers' | 'users' | 'roles' | null
+type MaestroKey = 'branches' | 'suppliers' | 'clients' | 'trucks' | 'drivers' | 'users' | 'roles' | 'timeEditor' | null
 
 const maestros = [
   {
@@ -62,6 +63,13 @@ const maestros = [
     icon: ShieldHalf,
     color: 'text-indigo-600 bg-indigo-100',
   },
+  {
+    key: 'timeEditor' as const,
+    label: 'Editor de Horas',
+    description: 'Buscar embarques y modificar marcas de tiempo de cada etapa',
+    icon: Clock,
+    color: 'text-amber-600 bg-amber-100',
+  },
 ]
 
 const windowTitles: Record<string, string> = {
@@ -72,6 +80,7 @@ const windowTitles: Record<string, string> = {
   drivers: 'Maestro de Conductores',
   users: 'Maestro de Usuarios',
   roles: 'Maestro de Roles',
+  timeEditor: 'Editor de Horas de Embarque',
 }
 
 export default function AdminPage() {
@@ -157,6 +166,14 @@ export default function AdminPage() {
         title={windowTitles.roles}
       >
         <RoleManagement />
+      </WindowDialog>
+
+      <WindowDialog
+        open={activeWindow === 'timeEditor'}
+        onClose={() => setActiveWindow(null)}
+        title={windowTitles.timeEditor}
+      >
+        <ShipmentTimeEditor />
       </WindowDialog>
     </div>
   )

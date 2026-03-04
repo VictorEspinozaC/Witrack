@@ -1,279 +1,37 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Truck, Clock, AlertTriangle, CheckCircle, PackageCheck, Bell, ClipboardList, Shield, XCircle } from 'lucide-react'
+import { Bell, ClipboardList, Shield, AlertTriangle, XCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
-import { STATUS_LABELS, STATUS_DOT_COLORS, SHIPMENT_STATES, INCIDENT_TYPES, type ShipmentStatus } from '@/lib/constants'
+import { STATUS_LABELS, STATUS_DOT_COLORS, SHIPMENT_STATES, type ShipmentStatus } from '@/lib/constants'
+import type { DateRangeKey } from '@/lib/kpi-config'
+import { useDashboardData } from '@/hooks/useDashboardData'
+import { KpiCard } from '@/components/dashboard/KpiCard'
+import { DateRangeFilter } from '@/components/dashboard/DateRangeFilter'
+import { ShipmentsPerDayChart } from '@/components/dashboard/ShipmentsPerDayChart'
+import { StageTimesChart } from '@/components/dashboard/StageTimesChart'
+import { IncidentsByTypeChart } from '@/components/dashboard/IncidentsByTypeChart'
 import { formatDistanceToNow, format } from 'date-fns'
 import { es } from 'date-fns/locale'
-
-// ---------- Types for new sections ----------
-
-interface Notification {
-  id: string
-  text: string
-  type: 'incident' | 'rejection' | 'info'
-  time: string
-  link: string
-}
-
-interface PendingTask {
-  id: string
-  text: string
-  link: string
-}
-
-interface PendingApproval {
-  id: string
-  branchName: string
-  truckPlate: string
-  scheduledDate: string
-  fileName: string
-  uploadedAt: string
-}
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [counts, setCounts] = useState<Record<string, number>>({})
-  const [incidentCount, setIncidentCount] = useState(0)
+  const [dateRange, setDateRange] = useState<DateRangeKey>('today')
 
-  // New state
-  const [notifications, setNotifications] = useState<Notification[]>([])
-  const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([])
-  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([])
+  const {
+    kpis,
+    statusCounts,
+    shipmentsPerDay,
+    stageTimes,
+    incidentsByType,
+    notifications,
+    pendingTasks,
+    pendingApprovals,
+    loading,
+  } = useDashboardData(dateRange)
 
-  // ---------- Existing useEffect: shipment counts + incident count ----------
-  useEffect(() => {
-    async function load() {
-      const branchId = user?.branch_id
-      let query = supabase.from('shipments').select('status')
-      if (branchId) query = query.eq('branch_id', branchId)
-
-      const { data } = await query
-      const grouped: Record<string, number> = {}
-      data?.forEach((s) => {
-        grouped[s.status] = (grouped[s.status] || 0) + 1
-      })
-      setCounts(grouped)
-
-      const incQuery = supabase.from('incidents').select('id', { count: 'exact', head: true }).eq('status', 'abierta')
-      const { count } = await incQuery
-      setIncidentCount(count ?? 0)
-    }
-    load()
-  }, [user?.branch_id])
-
-  // ---------- New useEffect: notifications ----------
-  useEffect(() => {
-    async function loadNotifications() {
-      const items: Notification[] = []
-
-      // 1. Last 5 open incidents
-      const { data: incidents } = await supabase
-        .from('incidents')
-        .select('id, type, created_at, shipment:shipments(truck_id, truck:trucks(plate))')
-        .eq('status', 'abierta')
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      if (incidents) {
-        for (const inc of incidents) {
-          const shipment = inc.shipment as unknown as { truck_id: string; truck: { plate: string } | null } | null
-          const plate = shipment?.truck?.plate ?? 'Sin patente'
-          const typeLabel = INCIDENT_TYPES.find(t => t.value === inc.type)?.label ?? inc.type
-          items.push({
-            id: `inc-${inc.id}`,
-            text: `Incidencia: ${typeLabel} - Camion ${plate}`,
-            type: 'incident',
-            time: inc.created_at ?? '',
-            link: '/incidencias',
-          })
-        }
-      }
-
-      // 2. Last 5 rejected order_confirmations
-      let rejQuery = supabase
-        .from('order_confirmations')
-        .select('id, rejection_reason, created_at, schedule:schedules(truck:trucks(plate), branch:branches(name), branch_id)')
-        .eq('status', 'rejected')
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      const { data: rejected } = await rejQuery
-
-      if (rejected) {
-        for (const rej of rejected) {
-          const schedule = rej.schedule as unknown as {
-            truck: { plate: string } | null
-            branch: { name: string } | null
-            branch_id: string
-          } | null
-
-          // For sucursal users, filter by their branch
-          if (user?.role === 'sucursal' && user?.branch_id && schedule?.branch_id !== user.branch_id) {
-            continue
-          }
-
-          const plate = schedule?.truck?.plate ?? 'Sin patente'
-          const branchName = schedule?.branch?.name ?? ''
-          const reason = rej.rejection_reason ?? 'Sin razon'
-          items.push({
-            id: `rej-${rej.id}`,
-            text: `Pedido rechazado${branchName ? ` (${branchName})` : ''}: ${plate} - ${reason}`,
-            type: 'rejection',
-            time: rej.created_at ?? '',
-            link: '/confirmacion-pedidos',
-          })
-        }
-      }
-
-      // Sort by time descending, take first 10
-      items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
-      setNotifications(items.slice(0, 10))
-    }
-
-    loadNotifications()
-  }, [user?.branch_id, user?.role])
-
-  // ---------- New useEffect: pending tasks ----------
-  useEffect(() => {
-    async function loadPendingTasks() {
-      const tasks: PendingTask[] = []
-      const role = user?.role
-
-      if (role === 'sucursal' && user?.branch_id) {
-        // Schedules with status='pending' for user's branch that need confirmation
-        const { data: schedules } = await supabase
-          .from('schedules')
-          .select(`
-            id, scheduled_date,
-            truck:trucks(plate),
-            order_confirmations(id, status)
-          `)
-          .eq('branch_id', user.branch_id)
-          .eq('status', 'pending')
-          .order('scheduled_date', { ascending: true })
-          .limit(10)
-
-        if (schedules) {
-          for (const sch of schedules) {
-            const confirmations = (sch.order_confirmations ?? []) as unknown as Array<{ id: string; status: string }>
-            // Need confirmation if no confirmations or last one was rejected
-            const hasValid = confirmations.some(c => c.status === 'pending_approval' || c.status === 'approved')
-            if (!hasValid) {
-              const truck = sch.truck as unknown as { plate: string } | null
-              const plate = truck?.plate ?? 'Sin patente'
-              const dateStr = format(new Date(sch.scheduled_date + 'T12:00:00'), 'dd/MM/yyyy')
-              tasks.push({
-                id: `sch-${sch.id}`,
-                text: `Confirmar pedido para ${dateStr} - ${plate}`,
-                link: '/confirmacion-pedidos',
-              })
-            }
-          }
-        }
-      } else if (role === 'supervisor' || role === 'admin') {
-        // Order confirmations pending approval
-        const { data: pending } = await supabase
-          .from('order_confirmations')
-          .select('id, schedule:schedules(truck:trucks(plate), branch:branches(name))')
-          .eq('status', 'pending_approval')
-          .order('uploaded_at', { ascending: false })
-          .limit(10)
-
-        if (pending) {
-          for (const item of pending) {
-            const schedule = item.schedule as unknown as {
-              truck: { plate: string } | null
-              branch: { name: string } | null
-            } | null
-            const plate = schedule?.truck?.plate ?? 'Sin patente'
-            const branchName = schedule?.branch?.name ?? 'Sucursal'
-            tasks.push({
-              id: `appr-${item.id}`,
-              text: `Aprobar pedido de ${branchName} - ${plate}`,
-              link: '/confirmacion-pedidos',
-            })
-          }
-        }
-      } else if (role === 'planta') {
-        // Show active shipment counts as task items
-        const statusTasks: Array<{ status: ShipmentStatus; label: string }> = [
-          { status: 'en_carga', label: 'camiones en carga' },
-          { status: 'espera_salida', label: 'esperando salida' },
-          { status: 'en_puerta', label: 'camiones en puerta' },
-          { status: 'en_patio', label: 'camiones en patio' },
-          { status: 'carga_terminada', label: 'con carga terminada' },
-          { status: 'emision_guia', label: 'en emision de guia' },
-        ]
-        for (const st of statusTasks) {
-          const c = counts[st.status] ?? 0
-          if (c > 0) {
-            tasks.push({
-              id: `task-${st.status}`,
-              text: `${c} ${st.label}`,
-              link: '/patio',
-            })
-          }
-        }
-      }
-
-      setPendingTasks(tasks)
-    }
-
-    loadPendingTasks()
-  }, [user?.branch_id, user?.role, counts])
-
-  // ---------- New useEffect: pending approvals (supervisor/admin only) ----------
-  useEffect(() => {
-    async function loadPendingApprovals() {
-      if (user?.role !== 'supervisor' && user?.role !== 'admin') {
-        setPendingApprovals([])
-        return
-      }
-
-      const { data } = await supabase
-        .from('order_confirmations')
-        .select('id, file_name, uploaded_at, schedule:schedules(scheduled_date, truck:trucks(plate), branch:branches(name))')
-        .eq('status', 'pending_approval')
-        .order('uploaded_at', { ascending: false })
-        .limit(10)
-
-      if (data) {
-        const items: PendingApproval[] = data.map((row) => {
-          const schedule = row.schedule as unknown as {
-            scheduled_date: string
-            truck: { plate: string } | null
-            branch: { name: string } | null
-          } | null
-          return {
-            id: row.id,
-            branchName: schedule?.branch?.name ?? 'Sin sucursal',
-            truckPlate: schedule?.truck?.plate ?? 'Sin patente',
-            scheduledDate: schedule?.scheduled_date ?? '',
-            fileName: row.file_name,
-            uploadedAt: row.uploaded_at,
-          }
-        })
-        setPendingApprovals(items)
-      }
-    }
-
-    loadPendingApprovals()
-  }, [user?.role])
-
-  // ---------- Derived values ----------
-  const activeCount = Object.entries(counts)
-    .filter(([k]) => k !== 'en_ruta' && k !== 'en_recepcion')
-    .reduce((sum, [, v]) => sum + v, 0)
-
-  const dispatchedToday = counts['en_ruta'] ?? 0
-  const enRecepcion = counts['en_recepcion'] ?? 0
-
-  // ---------- Helpers ----------
   function relativeTime(dateStr: string) {
     if (!dateStr) return ''
     try {
@@ -283,40 +41,36 @@ export default function DashboardPage() {
     }
   }
 
-  // ---------- Render ----------
-
-  const kpis = [
-    { label: 'Camiones Activos', value: activeCount, icon: Truck, color: 'text-primary', bgColor: 'bg-primary/10' },
-    { label: 'Despachados Hoy', value: dispatchedToday, icon: CheckCircle, color: 'text-emerald-600', bgColor: 'bg-emerald-50' },
-    { label: 'En Recepcion', value: enRecepcion, icon: PackageCheck, color: 'text-sky-600', bgColor: 'bg-sky-50' },
-    { label: 'Incidencias Abiertas', value: incidentCount, icon: AlertTriangle, color: 'text-red-600', bgColor: 'bg-red-50' },
-    { label: 'En Espera', value: (counts['agendado'] ?? 0) + (counts['en_puerta'] ?? 0), icon: Clock, color: 'text-amber-600', bgColor: 'bg-amber-50' },
-  ]
-
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Resumen de operaciones en tiempo real</p>
+      {/* Header + Date Filter */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-1">Resumen de operaciones en tiempo real</p>
+        </div>
+        <DateRangeFilter value={dateRange} onChange={setDateRange} />
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {/* Loading */}
+      {loading && (
+        <div className="flex h-20 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      )}
+
+      {/* 8 KPI Cards */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {kpis.map((kpi) => (
-          <Card key={kpi.label} className="relative overflow-hidden">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{kpi.label}</p>
-                  <p className="text-3xl font-bold tracking-tight">{kpi.value}</p>
-                </div>
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${kpi.bgColor}`}>
-                  <kpi.icon className={`h-5 w-5 ${kpi.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <KpiCard key={kpi.key} kpi={kpi} />
         ))}
+      </div>
+
+      {/* 3 Charts */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        <ShipmentsPerDayChart data={shipmentsPerDay} />
+        <StageTimesChart data={stageTimes} />
+        <IncidentsByTypeChart data={incidentsByType} />
       </div>
 
       {/* Status Summary */}
@@ -331,7 +85,7 @@ export default function DashboardPage() {
                 <div className={`h-2.5 w-2.5 rounded-full ${STATUS_DOT_COLORS[status as ShipmentStatus]}`} />
                 <div className="flex-1">
                   <p className="text-xs font-medium text-muted-foreground">{STATUS_LABELS[status as ShipmentStatus]}</p>
-                  <p className="text-xl font-bold">{counts[status] ?? 0}</p>
+                  <p className="text-xl font-bold">{statusCounts[status] ?? 0}</p>
                 </div>
               </div>
             ))}

@@ -275,48 +275,55 @@ export type Database = {
       }
       order_confirmations: {
         Row: {
-          id: string
-          schedule_id: string
-          file_url: string
-          file_name: string
-          files: Json | null
-          uploaded_by: string
-          uploaded_at: string
-          status: string
-          reviewed_by: string | null
-          reviewed_at: string | null
-          rejection_reason: string | null
           created_at: string | null
+          file_name: string
+          file_url: string
+          files: Json | null
+          id: string
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          schedule_id: string
+          status: string
+          uploaded_at: string
+          uploaded_by: string
         }
         Insert: {
-          id?: string
-          schedule_id: string
-          file_url: string
-          file_name: string
-          files?: Json | null
-          uploaded_by: string
-          uploaded_at?: string
-          status?: string
-          reviewed_by?: string | null
-          reviewed_at?: string | null
-          rejection_reason?: string | null
           created_at?: string | null
+          file_name: string
+          file_url: string
+          files?: Json | null
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          schedule_id: string
+          status?: string
+          uploaded_at?: string
+          uploaded_by: string
         }
         Update: {
-          id?: string
-          schedule_id?: string
-          file_url?: string
-          file_name?: string
-          files?: Json | null
-          uploaded_by?: string
-          uploaded_at?: string
-          status?: string
-          reviewed_by?: string | null
-          reviewed_at?: string | null
-          rejection_reason?: string | null
           created_at?: string | null
+          file_name?: string
+          file_url?: string
+          files?: Json | null
+          id?: string
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          schedule_id?: string
+          status?: string
+          uploaded_at?: string
+          uploaded_by?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "order_confirmations_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "order_confirmations_schedule_id_fkey"
             columns: ["schedule_id"]
@@ -331,9 +338,46 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      password_recovery_otp: {
+        Row: {
+          attempts: number | null
+          created_at: string | null
+          email: string | null
+          expires_at: string
+          id: string
+          otp_code: string
+          phone: string | null
+          used: boolean | null
+          user_id: string
+        }
+        Insert: {
+          attempts?: number | null
+          created_at?: string | null
+          email?: string | null
+          expires_at: string
+          id?: string
+          otp_code: string
+          phone?: string | null
+          used?: boolean | null
+          user_id: string
+        }
+        Update: {
+          attempts?: number | null
+          created_at?: string | null
+          email?: string | null
+          expires_at?: string
+          id?: string
+          otp_code?: string
+          phone?: string | null
+          used?: boolean | null
+          user_id?: string
+        }
+        Relationships: [
           {
-            foreignKeyName: "order_confirmations_reviewed_by_fkey"
-            columns: ["reviewed_by"]
+            foreignKeyName: "password_recovery_otp_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -342,28 +386,28 @@ export type Database = {
       }
       roles: {
         Row: {
-          id: string
-          name: string
-          description: string | null
-          permissions: Json
-          is_active: boolean
           created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          permissions: Json
         }
         Insert: {
-          id?: string
-          name: string
-          description?: string | null
-          permissions?: Json
-          is_active?: boolean
           created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          permissions?: Json
         }
         Update: {
-          id?: string
-          name?: string
-          description?: string | null
-          permissions?: Json
-          is_active?: boolean
           created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          permissions?: Json
         }
         Relationships: []
       }
@@ -551,11 +595,11 @@ export type Database = {
           longitude: number | null
           notes: string | null
           ramp_assignment: string | null
-          reception_confirmed: boolean
+          recepcion_time: string | null
+          reception_confirmed: boolean | null
           reception_confirmed_at: string | null
           reception_confirmed_by: string | null
           reception_time: string | null
-          recepcion_time: string | null
           schedule_id: string | null
           seal_number: string | null
           status: string
@@ -581,11 +625,11 @@ export type Database = {
           longitude?: number | null
           notes?: string | null
           ramp_assignment?: string | null
-          reception_confirmed?: boolean
+          recepcion_time?: string | null
+          reception_confirmed?: boolean | null
           reception_confirmed_at?: string | null
           reception_confirmed_by?: string | null
           reception_time?: string | null
-          recepcion_time?: string | null
           schedule_id?: string | null
           seal_number?: string | null
           status: string
@@ -611,11 +655,11 @@ export type Database = {
           longitude?: number | null
           notes?: string | null
           ramp_assignment?: string | null
-          reception_confirmed?: boolean
+          recepcion_time?: string | null
+          reception_confirmed?: boolean | null
           reception_confirmed_at?: string | null
           reception_confirmed_by?: string | null
           reception_time?: string | null
-          recepcion_time?: string | null
           schedule_id?: string | null
           seal_number?: string | null
           status?: string
@@ -636,6 +680,13 @@ export type Database = {
             columns: ["driver_id"]
             isOneToOne: false
             referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shipments_reception_confirmed_by_fkey"
+            columns: ["reception_confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -707,6 +758,44 @@ export type Database = {
           types?: string[]
         }
         Relationships: []
+      }
+      tariffs: {
+        Row: {
+          branch_id: string
+          created_at: string | null
+          id: string
+          is_active: boolean
+          price: number
+          transport_company: string
+          updated_at: string | null
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          price?: number
+          transport_company: string
+          updated_at?: string | null
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          price?: number
+          transport_company?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tariffs_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trucks: {
         Row: {
