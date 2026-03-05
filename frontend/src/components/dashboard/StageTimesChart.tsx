@@ -46,7 +46,7 @@ export function StageTimesChart({ data }: Props) {
               />
               <Tooltip
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                formatter={(value: number) => [`${value} min`, 'Promedio']}
+                formatter={(value) => [`${value} min`, 'Promedio']}
               />
               <Bar dataKey="avgMinutes" radius={[0, 4, 4, 0]}>
                 {data.map((_, idx) => (

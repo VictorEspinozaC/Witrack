@@ -3,7 +3,7 @@ import { format, subDays, differenceInMinutes } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/context/AuthContext'
-import { INCIDENT_TYPES, SHIPMENT_STATES, type ShipmentStatus } from '@/lib/constants'
+import { INCIDENT_TYPES, type ShipmentStatus } from '@/lib/constants'
 import {
   KPI_DEFINITIONS,
   computeKpiStatus,

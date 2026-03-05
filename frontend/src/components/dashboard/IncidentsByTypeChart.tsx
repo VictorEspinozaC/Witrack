@@ -54,7 +54,7 @@ export function IncidentsByTypeChart({ data }: Props) {
             </Pie>
             <Tooltip
               contentStyle={{ fontSize: 12, borderRadius: 8 }}
-              formatter={(value: number) => [value, 'Incidencias']}
+              formatter={(value) => [value, 'Incidencias']}
             />
             <Legend
               iconType="circle"

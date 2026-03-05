@@ -30,8 +30,8 @@ const secondaryItems: { to: string; icon: typeof ClipboardCheck; label: string; 
   { to: '/tarifas', icon: DollarSign, label: 'Tarifas', module: 'tarifas' },
 ]
 
-const adminItems = [
-  { to: '/admin', icon: Settings, label: 'Configuracion' },
+const adminItems: { to: string; icon: typeof Settings; label: string; module: PermissionModule }[] = [
+  { to: '/admin', icon: Settings, label: 'Configuracion', module: 'dashboard' },
 ]
 
 interface SidebarProps {

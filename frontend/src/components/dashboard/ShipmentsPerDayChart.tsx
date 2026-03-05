@@ -27,8 +27,8 @@ export function ShipmentsPerDayChart({ data }: Props) {
               <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="text-muted-foreground" />
               <Tooltip
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                formatter={(value: number) => [value, 'Embarques']}
-                labelFormatter={(label: string) => label}
+                formatter={(value) => [value, 'Embarques']}
+                labelFormatter={(label) => String(label)}
               />
               <Bar dataKey="count" fill="oklch(0.6 0.18 250)" radius={[4, 4, 0, 0]} />
             </BarChart>
