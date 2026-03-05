@@ -1,9 +1,15 @@
 import { useState, useMemo } from 'react'
 import { format, startOfWeek, addDays } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Plus, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, X, FileSpreadsheet, ClipboardList } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -12,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ScheduleForm } from '@/components/agendamiento/ScheduleForm'
+import { BulkScheduleUpload } from '@/components/agendamiento/BulkScheduleUpload'
 import { ScheduleList } from '@/components/agendamiento/ScheduleList'
 import { useSchedules } from '@/hooks/useSchedules'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -22,6 +29,8 @@ export default function AgendamientoPage() {
   const readOnly = !canWrite('agendamiento')
   const [weekOffset, setWeekOffset] = useState(0)
   const [showForm, setShowForm] = useState(false)
+  const [showModeSelector, setShowModeSelector] = useState(false)
+  const [showBulkUpload, setShowBulkUpload] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string | undefined>()
   const [statusFilter, setStatusFilter] = useState('all')
 
@@ -84,7 +93,7 @@ export default function AgendamientoPage() {
           <p className="text-sm text-muted-foreground mt-1">Planificacion semanal de servicios</p>
         </div>
         {!readOnly && (
-          <Button onClick={() => { setSelectedDate(undefined); setShowForm(true) }} className="gap-2">
+          <Button onClick={() => { setSelectedDate(undefined); setShowModeSelector(true) }} className="gap-2">
             <Plus className="h-4 w-4" /> Nueva Agenda
           </Button>
         )}
@@ -219,11 +228,52 @@ export default function AgendamientoPage() {
         </CardContent>
       </Card>
 
+      {/* Dialog selector de modo: Individual o Carga Masiva */}
+      <Dialog open={showModeSelector} onOpenChange={setShowModeSelector}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Nueva Agenda</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <button
+              className="flex flex-col items-center gap-3 rounded-xl border-2 border-border p-6 transition-all hover:border-primary hover:bg-primary/5"
+              onClick={() => { setShowModeSelector(false); setShowForm(true) }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50">
+                <ClipboardList className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="text-center">
+                <p className="font-semibold text-sm">Individual</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Crear una agenda manualmente</p>
+              </div>
+            </button>
+            <button
+              className="flex flex-col items-center gap-3 rounded-xl border-2 border-border p-6 transition-all hover:border-primary hover:bg-primary/5"
+              onClick={() => { setShowModeSelector(false); setShowBulkUpload(true) }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50">
+                <FileSpreadsheet className="h-6 w-6 text-emerald-600" />
+              </div>
+              <div className="text-center">
+                <p className="font-semibold text-sm">Carga Masiva</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Importar desde Excel</p>
+              </div>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <ScheduleForm
         open={showForm}
         onClose={() => setShowForm(false)}
         onCreate={createSchedule}
         defaultDate={selectedDate}
+      />
+
+      <BulkScheduleUpload
+        open={showBulkUpload}
+        onClose={() => setShowBulkUpload(false)}
+        onComplete={refetch}
       />
     </div>
   )

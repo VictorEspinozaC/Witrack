@@ -19,12 +19,18 @@ const SHIPMENT_SELECT = `
   incidents(id, status)
 `
 
-export function useShipments() {
+interface UseShipmentsOptions {
+  /** Filter shipments created on this date (yyyy-MM-dd). If omitted, no date filter. */
+  dateFilter?: string
+}
+
+export function useShipments(options?: UseShipmentsOptions) {
   const { user } = useAuth()
   const [shipments, setShipments] = useState<ShipmentWithRelations[]>([])
   const [loading, setLoading] = useState(true)
 
   const branchId = user?.branch_id
+  const dateFilter = options?.dateFilter
 
   const fetchShipments = useCallback(async () => {
     let query = supabase
@@ -37,13 +43,19 @@ export function useShipments() {
       query = query.eq('branch_id', branchId)
     }
 
+    if (dateFilter) {
+      query = query
+        .gte('created_at', `${dateFilter}T00:00:00`)
+        .lte('created_at', `${dateFilter}T23:59:59`)
+    }
+
     const { data, error } = await query
 
     if (!error && data) {
       setShipments(data as unknown as ShipmentWithRelations[])
     }
     setLoading(false)
-  }, [branchId])
+  }, [branchId, dateFilter])
 
   useEffect(() => {
     fetchShipments()
